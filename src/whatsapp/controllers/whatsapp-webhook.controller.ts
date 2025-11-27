@@ -1,76 +1,77 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Query,
-  Body,
-  ForbiddenException,
-  Logger,
-} from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { Controller, Get, Post, Query, Body, Logger } from '@nestjs/common';
 import { WhatsappService } from '../services/whatsapp.service';
-import { WebhookEventDto } from '../dto/webhook-event.dto';
-import { WhatsAppIncomingMessage } from '../interfaces/whatsapp-message.interface';
 
 @Controller('whatsapp')
 export class WhatsappWebhookController {
   private readonly logger = new Logger(WhatsappWebhookController.name);
 
-  constructor(
-    private readonly configService: ConfigService,
-    private readonly whatsappService: WhatsappService,
-  ) {}
+  constructor(private readonly whatsappService: WhatsappService) {}
 
+  /**
+   * GET webhook for verification
+   */
   @Get('webhook')
   verifyWebhook(
-    @Query('hub.mode') mode?: string,
-    @Query('hub.verify_token') verifyToken?: string,
-    @Query('hub.challenge') challenge?: string,
-  ): string {
-    const expectedToken = this.configService.get<string>(
-      'whatsapp.verifyToken',
-    );
+    @Query('hub.mode') mode: string,
+    @Query('hub.verify_token') verifyToken: string,
+    @Query('hub.challenge') challenge: string,
+  ) {
+    this.logger.debug(`Verification request: ${mode} | ${verifyToken}`);
 
-    if (mode === 'subscribe' && verifyToken === expectedToken) {
-      this.logger.log('Webhook verified successfully');
-      return challenge || '';
+    if (
+      mode === 'subscribe' &&
+      verifyToken === process.env.WHATSAPP_VERIFY_TOKEN
+    ) {
+      this.logger.debug(`Webhook Verified! Returning challenge.`);
+      return challenge;
     }
 
-    this.logger.warn(
-      `Webhook verification failed → mode=${mode}, token=${verifyToken}`,
-    );
-    throw new ForbiddenException('Invalid verify token');
+    this.logger.error(`Invalid verify token: ${verifyToken}`);
+    return 'Invalid verify token';
   }
 
+  /**
+   * POST webhook for events
+   */
   @Post('webhook')
-  async handleWebhook(@Body() body: WebhookEventDto) {
+  async handleWebhook(@Body() body: any) {
     this.logger.debug(
-      `Webhook payload: ${JSON.stringify(body, null, 2)}`,
-      WhatsappWebhookController.name,
+      `Incoming Webhook Payload:\n${JSON.stringify(body, null, 2)}`,
     );
 
-    const entry = body.entry?.[0];
-    const changes = entry?.changes?.[0];
-    const value = changes?.value;
+    try {
+      const entry = body.entry?.[0];
+      const changes = entry?.changes?.[0];
+      const value = changes?.value;
 
-    const messages = value?.messages;
-    if (!messages || messages.length === 0) {
-      return { status: 'ignored' };
-    }
+      const messages = value?.messages || [];
 
-    for (const msg of messages) {
-      const incoming: WhatsAppIncomingMessage = {
-        from: msg.from,
-        id: msg.id,
-        timestamp: msg.timestamp,
-        type: msg.type,
-        text: msg.text,
-        flow: msg.flow,
-      } as any;
+      if (messages.length === 0) {
+        return { status: 'ignored' };
+      }
 
-      await this.whatsappService.handleIncoming(incoming);
-    }
+      for (const message of messages) {
+        await this.whatsappService.handleIncoming({
+          from: message.from,
+          id: message.id,
+          timestamp: message.timestamp,
+          type: message.type,
+          text: message.text,
+          flow: message.flow,
+        });
+      }
 
-    return { status: 'ok' };
+      return { status: 'ok' };
+    } catch (error) {
+  if (error instanceof Error) {
+    this.logger.error(`Webhook error: ${error.message}`);
+    return { status: 'error', error: error.message };
   }
+
+  // fallback if error is a string or unknown
+  this.logger.error(`Webhook unknown error: ${JSON.stringify(error)}`);
+  return { status: 'error', error: 'Unknown error' };
+}
+  }
+
 }
