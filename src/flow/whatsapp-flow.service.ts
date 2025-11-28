@@ -17,7 +17,7 @@ export class WhatsappFlowService {
     return key.replace(/\\n/g, "\n");
   }
 
-  decryptPayload(payload: FlowsEncryptedDto): any {
+  decryptPayload(payload: any): any {
     this.logger.debug("Starting decryption...");
     
     try {
@@ -58,7 +58,7 @@ export class WhatsappFlowService {
     }
   }
 
-  async processEncryptedSubmission(payload: FlowsEncryptedDto) {
+  async processEncryptedSubmission(payload: any) {
     const data = this.decryptPayload(payload);
 
     // Return a BASE64 encoded success response
