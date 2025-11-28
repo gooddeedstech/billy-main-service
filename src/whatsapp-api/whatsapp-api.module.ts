@@ -1,10 +1,15 @@
 import { Module } from '@nestjs/common';
 import { HttpModule } from '@nestjs/axios';
 import { WhatsappApiService } from './whatsapp-api.service';
+import { WhatsappAPIWebhookController } from './webhook.controller';
+import { WhatsappWebhookService } from './webhook.service';
+import { UsersService } from '@/users/users.service';
+import { OnboardingFlowService } from '@/flows/on-boading/onboarding-flow.service';
 
 @Module({
-  imports: [HttpModule],          // ✔ gives HttpService
-  providers: [WhatsappApiService],
-  exports: [WhatsappApiService],  // ✔ allows other modules to use it
+  imports: [HttpModule],          
+  providers: [WhatsappApiService, WhatsappWebhookService, UsersService, OnboardingFlowService],
+  controllers:[WhatsappAPIWebhookController],
+  exports: [WhatsappApiService],  
 })
 export class WhatsappApiModule {}

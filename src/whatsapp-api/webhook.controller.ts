@@ -3,8 +3,10 @@ import { WhatsappWebhookService } from './webhook.service';
 
 
 @Controller('whatsapp/webhook')
-export class WhatsappWebhookController {
-  private readonly logger = new Logger(WhatsappWebhookController.name);
+export class WhatsappAPIWebhookController {
+
+  constructor(private readonly webhookService: WhatsappWebhookService) {}
+  private readonly logger = new Logger(WhatsappAPIWebhookController.name);
 
   @Post()
   @HttpCode(200)
@@ -19,5 +21,5 @@ export class WhatsappWebhookController {
     return this.webhookService.handleIncomingWebhook(body);
   }
 
-  constructor(private readonly webhookService: WhatsappWebhookService) {}
+
 }
