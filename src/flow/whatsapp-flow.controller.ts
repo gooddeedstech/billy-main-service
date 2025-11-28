@@ -1,4 +1,4 @@
-import { Controller, Post, Body } from '@nestjs/common';
+import { Controller, Post, Body, HttpCode } from '@nestjs/common';
 import { WhatsappFlowService } from './whatsapp-flow.service';
 
 @Controller('whatsapp/flow')
@@ -6,7 +6,9 @@ export class WhatsappFlowController {
   constructor(private readonly flowService: WhatsappFlowService) {}
 
   @Post()
-  async handleEncryptedFlow(@Body() body: any) {
-    return this.flowService.processEncryptedSubmission(body);
-  }
+@HttpCode(200)   // REQUIRED
+async handleEncryptedFlow(@Body() payload: any) {
+  const encrypted = await this.flowService.processEncryptedSubmission(payload);
+  return encrypted;   // MUST be plain string
+}
 }
