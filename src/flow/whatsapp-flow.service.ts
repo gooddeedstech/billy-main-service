@@ -9,24 +9,26 @@ export class WhatsappFlowService {
   private readonly logger = new Logger(WhatsappFlowService.name);
 
  private getPrivateKey(): string {
-  try {
-    // __dirname points to /dist/src/... in production
-    const keyPath = path.join(__dirname, "../keys/flow_private.pem");
+    try {
+      const keyPath = path.join(__dirname, "..", "keys", "flow_private.pem");
 
-    const key = fs.readFileSync(keyPath, "utf8");
+      this.logger.debug(`🔑 Loading private key from: ${keyPath}`);
 
-    this.logger.debug("Loaded private key from: " + keyPath);
-
-    return key;
-  } catch (e) {
-    this.logger.error("❌ Failed to load private key file", e);
-    throw e;
+      const pem = fs.readFileSync(keyPath, "utf8");
+      
+      this.logger.debug("🔑 Private key loaded successfully");
+      return pem;
+    } catch (error) {
+      this.logger.error("❌ Failed to load private key file");
+      this.logger.error(error);
+      throw error;
+    }
   }
-}
+
 
   decryptPayload(payload: any): any {
 
-    console.log(`MEYI ${payload}`)
+    console.log(`MEYI ${JSON.stringify(payload)}`)
     this.logger.debug("Starting decryption...");
     
     try {
