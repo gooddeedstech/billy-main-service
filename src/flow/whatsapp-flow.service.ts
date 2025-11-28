@@ -15,12 +15,12 @@ export class WhatsappFlowService {
    */
   private getPrivateKey(): crypto.KeyObject {
     // 1. ENV first (e.g. Docker secret / platform env)
-    const envKey = process.env.FLOW_PRIVATE_KEY;
-    if (envKey && envKey.trim().length > 0) {
-      this.logger.debug('🔑 Using private key from FLOW_PRIVATE_KEY env');
-      const pem = envKey.replace(/\\n/g, '\n');
-      return crypto.createPrivateKey(pem);
-    }
+    // const envKey = process.env.FLOW_PRIVATE_KEY;
+    // if (envKey && envKey.trim().length > 0) {
+    //   this.logger.debug('🔑 Using private key from FLOW_PRIVATE_KEY env');
+    //   const pem = envKey.replace(/\\n/g, '\n');
+    //   return crypto.createPrivateKey(pem);
+    // }
 
     // 2. Fallback to PEM file in dist/keys
     const keyPath = path.join(__dirname, '..', 'keys', 'flow_private.pem');
