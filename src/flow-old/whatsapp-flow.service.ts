@@ -8,8 +8,10 @@ import * as path from 'path';
 export class WhatsappFlowService {
   private readonly logger = new Logger(WhatsappFlowService.name);
 
- private getPrivateKey(): string {
-  const keyPath = path.resolve(process.cwd(), 'dist', 'keys', 'flow_private.pem');
+private getPrivateKey(): string {
+  // Always load from /app/dist/keys/... in production
+  const basePath = path.resolve(process.cwd(), 'dist', 'keys');
+  const keyPath = path.join(basePath, 'flow_private.pem');
 
   this.logger.debug(`🔑 Loading private key from: ${keyPath}`);
 
