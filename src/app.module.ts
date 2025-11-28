@@ -5,7 +5,6 @@ import { validationSchema } from './config/validation-schema';
 import { WhatsappModule } from './whatsapp/whatsapp.module';
 import { UsersModule } from './users/users.module';
 import { LlmModule } from './llm/llm.module';
-import { WhatsappFlowModule } from './flow/whatsapp-flow.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { OnboardingUser } from './entities/users.entity';
 
@@ -23,7 +22,7 @@ import { OnboardingUser } from './entities/users.entity';
       entities: [OnboardingUser],
       synchronize: false, // true only in dev if you like
     }),
-    WhatsappFlowModule,
+    WhatsappModule,
     ConfigModule.forRoot({
       isGlobal: true,
       load: [configuration],
