@@ -33,9 +33,11 @@ export class WhatsappApiService {
 
       await firstValueFrom(this.http.post(this.apiUrl, payload, { headers: this.headers() }));
       this.logger.log(`📩 Sent text to ${to}`);
-    } catch (err) {
-      this.logger.error(`❌ Failed to send text: ${err.response?.data || err.message}`);
-    }
+   } catch (error) {
+  this.logger.error('❌ Failed to send text:', 
+    JSON.stringify(error.response?.data || error, null, 2)
+  );
+}
   }
 
   /**
