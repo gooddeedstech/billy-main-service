@@ -21,21 +21,35 @@ export class OnboardingFlowService {
    * Load private key used for Flow decryption
    * You can also load from env instead of file if you prefer.
    */
+  // private getPrivateKey(): string {
+  //   // Option A: from file (recommended for docker)
+  //   const keyPath =
+  //     process.env.FLOW_PRIVATE_KEY_PATH ??
+  //     path.join(__dirname, '..', 'keys', 'flow_private.pem');
+
+  //   this.logger.debug(`🔑 Loading private key from: ${keyPath}`);
+
+  //   const pem = fs.readFileSync(keyPath, 'utf8');
+  //   return pem;
+
+  //   // Option B (if you stored it in env as single-line with \n)
+  //   // const envKey = process.env.FLOW_PRIVATE_KEY;
+  //   // if (!envKey) throw new Error('FLOW_PRIVATE_KEY not set');
+  //   // return envKey.replace(/\\n/g, '\n');
+  // }
+
   private getPrivateKey(): string {
-    // Option A: from file (recommended for docker)
-    const keyPath =
-      process.env.FLOW_PRIVATE_KEY_PATH ??
-      path.join(__dirname, '..', 'keys', 'flow_private.pem');
-
+    // Always load from /app/dist/keys/... in production
+    const basePath = path.resolve(process.cwd(), 'dist', 'keys');
+    const keyPath = path.join(basePath, 'flow_private.pem');
+  
     this.logger.debug(`🔑 Loading private key from: ${keyPath}`);
-
-    const pem = fs.readFileSync(keyPath, 'utf8');
-    return pem;
-
-    // Option B (if you stored it in env as single-line with \n)
-    // const envKey = process.env.FLOW_PRIVATE_KEY;
-    // if (!envKey) throw new Error('FLOW_PRIVATE_KEY not set');
-    // return envKey.replace(/\\n/g, '\n');
+  
+    if (!fs.existsSync(keyPath)) {
+      throw new Error(`Private key not found at: ${keyPath}`);
+    }
+  
+    return fs.readFileSync(keyPath, 'utf8');
   }
 
   /**

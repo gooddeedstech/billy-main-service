@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { WhatsappApiService } from './whatsapp-api.service';
 import { UsersService } from '@/users/users.service';
-import { OnboardingFlowService } from '@/flows/on-boarding/onboarding-flow.service';
+import { OnboardingFlowService } from '@/flows/on-boading/onboarding-flow.service';
 
 
 @Injectable()
