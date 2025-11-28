@@ -8,15 +8,20 @@ import * as path from "path";
 export class WhatsappFlowService {
   private readonly logger = new Logger(WhatsappFlowService.name);
 
-  private getPrivateKey(): string {
-  const keyPath = path.join(__dirname, "../keys/flow_private.pem");
+ private getPrivateKey(): string {
+  try {
+    // __dirname points to /dist/src/... in production
+    const keyPath = path.join(__dirname, "../keys/flow_private.pem");
 
-  const key = fs.readFileSync(keyPath, "utf8");
-  console.log(key)
+    const key = fs.readFileSync(keyPath, "utf8");
 
-  this.logger.debug("PRIVATE KEY LOADED, length=" + key.length);
+    this.logger.debug("Loaded private key from: " + keyPath);
 
-  return key;
+    return key;
+  } catch (e) {
+    this.logger.error("❌ Failed to load private key file", e);
+    throw e;
+  }
 }
 
   decryptPayload(payload: any): any {
