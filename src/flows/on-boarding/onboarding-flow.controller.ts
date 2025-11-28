@@ -3,7 +3,7 @@ import { OnboardingFlowService } from './onboarding-flow.service';
 import { MetaFlowEncryptedDto } from './dtos/meta-flow-encrypted.dto';
 
 
-@Controller('whatsapp/flows')
+@Controller('whatsapp/flow')
 export class OnboardingFlowController {
   constructor(
     private readonly onboardingFlowService: OnboardingFlowService,
