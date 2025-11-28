@@ -7,6 +7,7 @@ import { UsersModule } from './users/users.module';
 import { LlmModule } from './llm/llm.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { OnboardingUser } from './entities/users.entity';
+import { FlowModule } from './flow/whatsapp-flow.module';
 
 
 @Module({
@@ -31,6 +32,7 @@ import { OnboardingUser } from './entities/users.entity';
     UsersModule,
     LlmModule,
     WhatsappModule,
+    FlowModule
   ],
 })
 export class AppModule {}
