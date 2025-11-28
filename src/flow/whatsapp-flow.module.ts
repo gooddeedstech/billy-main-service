@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
-import { WhatsappFlowService } from './whatsapp-flow.service';
 import { WhatsappFlowController } from './whatsapp-flow.controller';
+import { WhatsappFlowService } from './whatsapp-flow.service';
 
 @Module({
   controllers: [WhatsappFlowController],
