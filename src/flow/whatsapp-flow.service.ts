@@ -1,6 +1,5 @@
 import * as crypto from "crypto";
 import { Injectable, Logger } from "@nestjs/common";
-import { FlowsEncryptedDto } from "./dto/flows-encrypted.dto";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -8,49 +7,43 @@ import * as path from "path";
 export class WhatsappFlowService {
   private readonly logger = new Logger(WhatsappFlowService.name);
 
- private getPrivateKey(): string {
+  private getPrivateKey(): string {
+    const keyPath = path.join(__dirname, "..", "keys", "flow_private.pem");
+
+    this.logger.debug(`🔑 Loading private key from: ${keyPath}`);
+
     try {
-      const keyPath = path.join(__dirname, "..", "keys", "flow_private.pem");
-
-      this.logger.debug(`🔑 Loading private key from: ${keyPath}`);
-
       const pem = fs.readFileSync(keyPath, "utf8");
-      
-      this.logger.debug("🔑 Private key loaded successfully");
+      this.logger.debug("🔑 Private key loaded");
       return pem;
     } catch (error) {
       this.logger.error("❌ Failed to load private key file");
-      this.logger.error(error);
       throw error;
     }
   }
 
-
-  decryptPayload(payload: any): any {
-
-    console.log(`MEYI ${JSON.stringify(payload)}`)
+  decryptPayload(payload: any) {
     this.logger.debug("Starting decryption...");
-    
+
     try {
-      // 1️⃣ RSA decrypt AES key
+      /** 1️⃣ RSA-OAEP-SHA256 decrypt AES key */
       const aesKey = crypto.privateDecrypt(
         {
           key: this.getPrivateKey(),
           padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
+          oaepHash: "sha256",     // <-- REQUIRED FOR WHATSAPP
         },
         Buffer.from(payload.encrypted_aes_key, "base64")
       );
 
       this.logger.debug(`AES key length: ${aesKey.length}`);
 
-      // 2️⃣ AES-256-GCM decrypt flow data
+      /** 2️⃣ AES-256-CBC decrypt payload */
       const decipher = crypto.createDecipheriv(
-        "aes-256-gcm",
+        "aes-256-cbc",                                   // <-- FIXED MODE
         aesKey,
         Buffer.from(payload.initial_vector, "base64")
       );
-
-      decipher.setAuthTag(Buffer.from(payload.authentication_tag, "base64"));
 
       let decrypted =
         decipher.update(payload.encrypted_flow_data, "base64", "utf8");
@@ -64,7 +57,8 @@ export class WhatsappFlowService {
       return json;
 
     } catch (err) {
-      this.logger.error("❌ Decryption failed:", err);
+      this.logger.error("❌ Decryption failed");
+      this.logger.error(err);
       throw new Error("Failed to decrypt flow payload");
     }
   }
@@ -72,9 +66,7 @@ export class WhatsappFlowService {
   async processEncryptedSubmission(payload: any) {
     const data = this.decryptPayload(payload);
 
-    // Return a BASE64 encoded success response
-    const response = JSON.stringify({ success: true });
-
-    return Buffer.from(response).toString("base64");
+    // WhatsApp expects base64 encoded response
+    return Buffer.from(JSON.stringify({ success: true })).toString("base64");
   }
 }
