@@ -9,7 +9,9 @@ export class WhatsappFlowService {
   private readonly logger = new Logger(WhatsappFlowService.name);
 
  private getPrivateKey(): string {
-  const keyPath = path.resolve(process.cwd(), 'src', 'keys', 'flow_private.pem');
+  const keyPath = path.resolve(process.cwd(), 'dist', 'keys', 'flow_private.pem');
+
+  this.logger.debug(`🔑 Loading private key from: ${keyPath}`);
 
   if (!fs.existsSync(keyPath)) {
     throw new Error(`Private key not found at: ${keyPath}`);
