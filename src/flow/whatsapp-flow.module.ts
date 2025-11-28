@@ -5,6 +5,5 @@ import { WhatsappFlowService } from './whatsapp-flow.service';
 @Module({
   controllers: [WhatsappFlowController],
   providers: [WhatsappFlowService],
-  exports: [WhatsappFlowService],
 })
-export class FlowModule {}
+export class WhatsappFlowModule {}
