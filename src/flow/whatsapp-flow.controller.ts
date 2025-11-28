@@ -6,10 +6,8 @@ import { FlowsEncryptedDto } from './dto/flows-encrypted.dto';
 export class WhatsappFlowController {
   constructor(private readonly flowService: WhatsappFlowService) {}
 
-  @Post('onboarding')
-  async submitOnboardingEncrypted(@Body() body: any) {
-    console.log(body)
-    const encrypted = body.encrypted_flow_data;
-    return this.flowService.processEncryptedSubmission(encrypted);
-  }
+@Post('onboarding')
+async submitOnboardingEncrypted(@Body() dto: FlowsEncryptedDto) {
+  return this.flowService.processEncryptedSubmission(dto);
+}
 }

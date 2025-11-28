@@ -1,64 +1,54 @@
-import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
-import { EncryptedFlowData } from './dto/flows-encrypted.dto';
-import * as crypto from 'crypto';
+import * as crypto from "crypto";
+import { FlowsEncryptedDto } from "./dto/flows-encrypted.dto";
+import { Injectable } from "@nestjs/common";
 
 @Injectable()
 export class WhatsappFlowService {
 
-  private readonly logger = new Logger(WhatsappFlowService.name);
-
-  private getPrivateKey(): string {
+  private getPrivateKey() {
     const key = process.env.FLOW_PRIVATE_KEY;
-    if (!key) throw new Error("FLOW_PRIVATE_KEY is not set");
-
-    return key.replace(/\\n/g, '\n'); // Fix formatting from .env
+    if (!key) throw new Error("FLOW_PRIVATE_KEY not set");
+    return key.replace(/\\n/g, '\n');
   }
 
-  private decryptPayload(data: EncryptedFlowData): any {
+  decryptPayload(body: FlowsEncryptedDto) {
     try {
-      const privateKey = this.getPrivateKey();
-
-      // 1️⃣ DECRYPT the AES key using RSA private key
-      const decryptedAesKey = crypto.privateDecrypt(
+      // 1️⃣ RSA decrypt AES key
+      const aesKey = crypto.privateDecrypt(
         {
-          key: privateKey,
+          key: this.getPrivateKey(),
           padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
         },
-        Buffer.from(data.encrypted_key, 'base64'),
+        Buffer.from(body.encrypted_aes_key, 'base64'),
       );
 
-      // 2️⃣ DECRYPT the encrypted_data using AES-GCM
+      // 2️⃣ AES decrypt flow data (AES-256-CBC)
       const decipher = crypto.createDecipheriv(
-        'aes-256-gcm',
-        decryptedAesKey,
-        Buffer.from(data.iv, 'base64'),
-      );
+        'aes-256-cbc',
+        aesKey,
+        Buffer.from(body.initial_vector, 'base64'),
+      ); 
 
-      decipher.setAuthTag(Buffer.from(data.tag, 'base64'));
-
-      const decrypted =
-        decipher.update(data.encrypted_data, 'base64', 'utf8') +
-        decipher.final('utf8');
+      let decrypted =
+        decipher.update(body.encrypted_flow_data, 'base64', 'utf8');
+      decrypted += decipher.final('utf8');
 
       return JSON.parse(decrypted);
 
-    } catch (error) {
-      this.logger.error("Decryption error", error);
-      throw new InternalServerErrorException("Failed to decrypt flow payload");
+    } catch (err) {
+      console.error("Decryption error:", err);
+      throw new Error("Failed to decrypt flow payload");
     }
   }
 
-  async processEncryptedSubmission(encrypted: EncryptedFlowData) {
-    const decrypted = this.decryptPayload(encrypted);
+  async processEncryptedSubmission(dto: FlowsEncryptedDto) {
+    const decrypted = this.decryptPayload(dto);
 
-    this.logger.log("FLOW SUBMISSION RECEIVED:");
-    this.logger.log(JSON.stringify(decrypted, null, 2));
+    console.log("FLOW DECRYPTED DATA:");
+    console.log(decrypted);
 
-    // 🚀 Save to DB or process onboarding here...
-
-    // 3️⃣ WhatsApp REQUIRES Base64 encoded success string
+    // WhatsApp requires BASE64 response
     const response = JSON.stringify({ success: true });
-
-    return Buffer.from(response).toString('base64');
+    return Buffer.from(response).toString("base64");
   }
 }
