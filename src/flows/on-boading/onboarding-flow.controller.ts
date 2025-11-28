@@ -21,4 +21,4 @@ export class OnboardingFlowController {
   ): Promise<string> {
     return this.onboardingFlowService.handleEncryptedSubmission(body);
   }
-} 
+}  

@@ -7,7 +7,8 @@ import { UsersModule } from './users/users.module';
 import { LlmModule } from './llm/llm.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { OnboardingUser } from './entities/users.entity';
-import { OnboardingFlowModule } from './flows/on-boarding/onboarding-flow.module';
+import { OnboardingFlowModule } from './flows/on-boading/onboarding-flow.module';
+import { WhatsappApiModule } from './whatsapp-api/whatsapp-api.module';
 
 
 @Module({
@@ -32,6 +33,7 @@ import { OnboardingFlowModule } from './flows/on-boarding/onboarding-flow.module
     UsersModule,
     LlmModule,
     OnboardingFlowModule,
+    WhatsappApiModule,
     
   ],
 })

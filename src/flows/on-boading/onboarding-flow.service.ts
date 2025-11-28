@@ -47,7 +47,7 @@ export class OnboardingFlowService {
   
     if (!fs.existsSync(keyPath)) {
       throw new Error(`Private key not found at: ${keyPath}`);
-    }
+    } 
   
     return fs.readFileSync(keyPath, 'utf8');
   }
