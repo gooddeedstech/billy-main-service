@@ -8,7 +8,7 @@ export class WhatsappFlowService {
 
   private getPrivateKey(): string {
     const key = process.env.FLOW_PRIVATE_KEY;
-
+console.log(key)
     if (!key) {
       throw new Error("FLOW_PRIVATE_KEY is not set");
     }
@@ -18,6 +18,8 @@ export class WhatsappFlowService {
   }
 
   decryptPayload(payload: any): any {
+
+    console.log(`MEYI ${payload}`)
     this.logger.debug("Starting decryption...");
     
     try {
