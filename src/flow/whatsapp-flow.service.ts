@@ -1,21 +1,23 @@
 import * as crypto from "crypto";
 import { Injectable, Logger } from "@nestjs/common";
 import { FlowsEncryptedDto } from "./dto/flows-encrypted.dto";
+import * as fs from "fs";
+import * as path from "path";
 
 @Injectable()
 export class WhatsappFlowService {
   private readonly logger = new Logger(WhatsappFlowService.name);
 
   private getPrivateKey(): string {
-    const key = process.env.FLOW_PRIVATE_KEY;
-console.log(key)
-    if (!key) {
-      throw new Error("FLOW_PRIVATE_KEY is not set");
-    }
+  const keyPath = path.join(__dirname, "../keys/flow_private.pem");
 
-    // Fix escaped \n in environment variables
-    return key.replace(/\\n/g, "\n");
-  }
+  const key = fs.readFileSync(keyPath, "utf8");
+  console.log(key)
+
+  this.logger.debug("PRIVATE KEY LOADED, length=" + key.length);
+
+  return key;
+}
 
   decryptPayload(payload: any): any {
 
