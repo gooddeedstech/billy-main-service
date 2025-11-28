@@ -7,7 +7,8 @@ import { UsersModule } from './users/users.module';
 import { LlmModule } from './llm/llm.module';
 import { WhatsappFlowModule } from './flow/whatsapp-flow.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { User } from './entities/users.entity';
+import { OnboardingUser } from './entities/users.entity';
+
 
 @Module({
   imports: [
@@ -16,10 +17,10 @@ import { User } from './entities/users.entity';
       envFilePath: '.env',   // (optional) ensure .env is loaded
     }),
     TypeOrmModule.forRoot({
-      // your DB config
+      // your DB config 
       type: 'postgres',
       url: process.env.DATABASE_URL,
-      entities: [User],
+      entities: [OnboardingUser],
       synchronize: false, // true only in dev if you like
     }),
     WhatsappFlowModule,
