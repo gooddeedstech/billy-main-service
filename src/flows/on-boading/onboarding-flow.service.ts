@@ -164,7 +164,7 @@ export class OnboardingFlowService {
      * }
      */
     const { action, data } = decryptedBody;
-    console.log(JSON.stringify(data))
+    console.log(JSON.stringify(decryptedBody))
 
     // Health check from Meta sends { action: "ping" }
     if (action === 'ping') {
