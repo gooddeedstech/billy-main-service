@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Query, Body, Logger, HttpCode } from '@nestjs/common';
 import { WhatsappService } from '../services/whatsapp.service';
 import { WhatsappCryptoService } from '../services/whatsapp-crypto.service';
-import { FlowsEncryptedDto } from '../dto/flows-encrypted.dto';
+import { FlowsEncryptedDto } from '@/whatsapp/dto/flows-encrypted.dto';
 
 @Controller('whatsapp')
 export class WhatsappWebhookController {
@@ -79,43 +79,43 @@ export class WhatsappWebhookController {
   }
 
 
-    @Post('flows-callback')
-  @HttpCode(200)
-  async handleFlowsCallback(@Body() body: FlowsEncryptedDto) {
-    // 1. Decrypt symmetric key
-    const symmetricKey = this.cryptoSvc.decryptSymmetricKey(body.encrypted_key);
+  //   @Post('flows-callback')
+  // @HttpCode(200)
+  // async handleFlowsCallback(@Body() body: FlowsEncryptedDto) {
+  //   // 1. Decrypt symmetric key
+  //   const symmetricKey = this.cryptoSvc.decryptSymmetricKey(body.encrypted_key);
 
-    // 2. Decrypt the main data
-    const decryptedDataJson = this.cryptoSvc.decryptAesGcmPayload({
-      cipherTextB64: body.encrypted_data,
-      ivB64: body.iv,
-      tagB64: body.tag,
-      symmetricKey,
-    });
+  //   // 2. Decrypt the main data
+  //   const decryptedDataJson = this.cryptoSvc.decryptAesGcmPayload({
+  //     cipherTextB64: body.encrypted_data,
+  //     ivB64: body.iv,
+  //     tagB64: body.tag,
+  //     symmetricKey,
+  //   });
 
-    // 3. Decrypt metadata if Meta sends it separately
-    let decryptedMetadata: any | null = null;
-    if (body.encrypted_metadata) {
-      const decryptedMetadataJson = this.cryptoSvc.decryptAesGcmPayload({
-        cipherTextB64: body.encrypted_metadata,
-        ivB64: body.iv,      // or a separate IV for metadata if docs say so
-        tagB64: body.tag,    // or its own tag
-        symmetricKey,
-      });
-      decryptedMetadata = JSON.parse(decryptedMetadataJson);
-    }
+  //   // 3. Decrypt metadata if Meta sends it separately
+  //   let decryptedMetadata: any | null = null;
+  //   if (body.encrypted_metadata) {
+  //     const decryptedMetadataJson = this.cryptoSvc.decryptAesGcmPayload({
+  //       cipherTextB64: body.encrypted_metadata,
+  //       ivB64: body.iv,      // or a separate IV for metadata if docs say so
+  //       tagB64: body.tag,    // or its own tag
+  //       symmetricKey,
+  //     });
+  //     decryptedMetadata = JSON.parse(decryptedMetadataJson);
+  //   }
 
-    const decryptedData = JSON.parse(decryptedDataJson);
+  //   const decryptedData = JSON.parse(decryptedDataJson);
 
-    // 4. Now you have plain JSON from the flow, do your business logic
-    // e.g. read user inputs, save to DB, call Billy tools, etc.
-    // console.log({ decryptedData, decryptedMetadata });
+  //   // 4. Now you have plain JSON from the flow, do your business logic
+  //   // e.g. read user inputs, save to DB, call Billy tools, etc.
+  //   // console.log({ decryptedData, decryptedMetadata });
 
-    // 5. Return the response expected by Flows (GraphQL / actions),
-    // in *plaintext* or encrypted again depending on the doc.
-    return {
-      success: true,
-    };
-  }
+  //   // 5. Return the response expected by Flows (GraphQL / actions),
+  //   // in *plaintext* or encrypted again depending on the doc.
+  //   return {
+  //     success: true,
+  //   };
+  // }
 
 }
