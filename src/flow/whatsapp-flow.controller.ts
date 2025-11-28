@@ -7,7 +7,8 @@ export class WhatsappFlowController {
   constructor(private readonly flowService: WhatsappFlowService) {}
 
   @Post('onboarding')
-  async submitOnboardingEncrypted(@Body() body: FlowsEncryptedDto) {
+  async submitOnboardingEncrypted(@Body() body: any) {
+    console.log(body)
     const encrypted = body.encrypted_flow_data;
     return this.flowService.processEncryptedSubmission(encrypted);
   }
