@@ -13,7 +13,7 @@ export class WhatsappFlowService {
 
   decryptPayload(body: FlowsEncryptedDto) {
     try {
-
+console.log(`Body @ Dcryt ${body}`)
       // 1️⃣ RSA-OAEP-SHA256 decrypt AES key
       const aesKey = crypto.privateDecrypt(
         {
