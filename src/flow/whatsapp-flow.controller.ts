@@ -5,7 +5,7 @@ import { WhatsappFlowService } from './whatsapp-flow.service';
 export class WhatsappFlowController {
   constructor(private readonly flowService: WhatsappFlowService) {}
 
-  @Post()
+  @Post('onboarding')
 @HttpCode(200)   
 async handleEncryptedFlow(@Body() payload: any) {
   const encrypted = await this.flowService.processEncryptedSubmission(payload);

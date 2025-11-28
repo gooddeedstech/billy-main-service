@@ -65,6 +65,18 @@ export class WhatsappFlowService {
 
   async processEncryptedSubmission(payload: any) {
     const data = this.decryptPayload(payload);
+let responseJson: any;
+       if (data.action === 'ping') {
+      responseJson = {
+        version: '3.0',
+        action: 'pong',
+      };
+    } else {
+      // 🔧 Example payload for real flows – adjust later
+      responseJson = {
+        
+      };
+    }
 
     // WhatsApp expects base64 encoded response
     return Buffer.from(JSON.stringify({ success: true })).toString("base64");
