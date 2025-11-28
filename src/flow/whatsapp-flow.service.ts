@@ -268,7 +268,14 @@ export class WhatsappFlowService {
   // 2) Decrypt encrypted submission from WhatsApp
   // ---------------------------------------------------------
   private decryptPayload(body: FlowsEncryptedDto): any {
-    const { encrypted_key, encrypted_data, iv, tag } = body;
+
+    const {
+  encrypted_key,
+  encrypted_data,
+  encrypted_metadata,
+  iv,
+  tag,
+} = body.encrypted_flow_data;
 
     // 1. Decrypt AES symmetric key with RSA private key
     const symmetricKey = crypto.privateDecrypt(

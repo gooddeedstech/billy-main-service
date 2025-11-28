@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Post } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, HttpCode, Post } from '@nestjs/common';
 import { WhatsappFlowService } from './whatsapp-flow.service';
 import { FlowsEncryptedDto } from './dto/flows-encrypted.dto';
 
@@ -20,19 +20,19 @@ export class WhatsappFlowController {
    * POST https://api.usebilly.ai/whatsapp/flow/onboarding/submit
    * Called by WhatsApp when user completes the flow
    */
-  @Post('onboarding/submit')
-  @HttpCode(200)
-  async submitOnboardingEncrypted(@Body() body: FlowsEncryptedDto) {
-    return this.flowService.processEncryptedSubmission(body);
-  }
+ @Post('onboarding/submit')
+@Post('flow/onboarding')
+async submitOnboardingEncrypted(@Body() body: any) {
+  const encrypted_flow_data = {
+    encrypted_key: body.encrypted_key,
+    encrypted_data: body.encrypted_data,
+    encrypted_metadata: body.encrypted_metadata,
+    iv: body.iv,
+    tag: body.tag,
+  };
 
-  /**
-   * 3) Test endpoint (NO encryption) - for local dev
-   * You can POST the decrypted JSON here to test onboarding + welcome message
-   */
-  @Post('onboarding/test')
-  @HttpCode(200)
-  async submitOnboardingPlain(@Body() decryptedBody: any) {
-    return this.flowService.processPlainSubmission(decryptedBody);
-  }
+  return this.flowService.processEncryptedSubmission({
+    encrypted_flow_data,
+  });
+}
 }
