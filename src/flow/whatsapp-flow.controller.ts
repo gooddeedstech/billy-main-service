@@ -23,6 +23,7 @@ export class WhatsappFlowController {
  @Post('onboarding/submit')
 @Post('flow/onboarding')
 async submitOnboardingEncrypted(@Body() body: any) {
+    
   const encrypted_flow_data = {
     encrypted_key: body.encrypted_key,
     encrypted_data: body.encrypted_data,
@@ -30,9 +31,11 @@ async submitOnboardingEncrypted(@Body() body: any) {
     iv: body.iv,
     tag: body.tag,
   };
+  console.log(JSON.stringify(encrypted_flow_data))
+  return { "statusCode": 200, "message": "SUcessfull"}
 
-  return this.flowService.processEncryptedSubmission({
-    encrypted_flow_data,
-  });
+//   return this.flowService.processEncryptedSubmission({
+//     encrypted_flow_data,
+//   });
 }
 }
