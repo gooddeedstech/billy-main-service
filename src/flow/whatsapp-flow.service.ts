@@ -29,12 +29,24 @@ export class WhatsappFlowService {
     } = this.decryptRequest(payload, privatePem);
 
     this.logger.debug(`Decrypted Flow Body: ${JSON.stringify(decryptedBody)}`);
-
+let responseData
     // Build the next screen response (example; replace with real logic)
-    const responseData = {
-      screen: 'SCREEN_NAME',
-      data: { some_key: 'some_value' },
-    };
+   if (decryptedBody.action === 'ping') {
+  // Meta health check expected response
+  responseData = {
+    data: {
+      status: 'active',
+    },
+  };
+} else {
+  // Normal onboarding flow response
+  responseData = {
+    screen: 'SCREEN_NAME',
+    data: {
+      some_key: 'some_value',
+    },
+  };
+}
 
     return this.encryptResponse(responseData, aesKeyBuffer, initialVectorBuffer);
   }
