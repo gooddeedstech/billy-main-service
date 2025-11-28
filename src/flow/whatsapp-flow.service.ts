@@ -7,54 +7,51 @@ export class WhatsappFlowService {
 
   private getPrivateKey() {
     const key = process.env.FLOW_PRIVATE_KEY;
-    if (!key) throw new Error("FLOW_PRIVATE_KEY is missing");
-
-    return key.replace(/\\n/g, "\n");
+    if (!key) throw new Error("FLOW_PRIVATE_KEY not set");
+    return key.replace(/\\n/g, '\n');
   }
 
-  decryptPayload(dto: FlowsEncryptedDto) {
+  decryptPayload(body: FlowsEncryptedDto) {
     try {
-      console.log("🔥 RAW FLOW SUBMISSION FROM META:", dto);
 
-      // 1️⃣ Decrypt AES key using RSA-OAEP-SHA256
+      // 1️⃣ RSA-OAEP-SHA256 decrypt AES key
       const aesKey = crypto.privateDecrypt(
         {
           key: this.getPrivateKey(),
-          padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
           oaepHash: "sha256",
+          padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
         },
-        Buffer.from(dto.encrypted_aes_key, "base64"),
+        Buffer.from(body.encrypted_aes_key, "base64")
       );
 
-      // 2️⃣ AES-256-CBC decrypt (NO TAG IN YOUR PAYLOAD)
+      // 2️⃣ AES-256-GCM decrypt data
       const decipher = crypto.createDecipheriv(
-        "aes-256-cbc",
+        "aes-256-gcm",
         aesKey,
-        Buffer.from(dto.initial_vector, "base64"),
+        Buffer.from(body.initial_vector, "base64"),
       );
+
+      decipher.setAuthTag(Buffer.from(body.authentication_tag, "base64"));
 
       let decrypted =
-        decipher.update(dto.encrypted_flow_data, "base64", "utf8");
+        decipher.update(body.encrypted_flow_data, "base64", "utf8");
       decrypted += decipher.final("utf8");
-
-      console.log("🔥 DECRYPTED FLOW PAYLOAD:", decrypted);
 
       return JSON.parse(decrypted);
 
-    } catch (error) {
-      console.error("❌ Decryption failed:", error);
-      throw new Error("FAILED_TO_DECRYPT_FLOW_PAYLOAD");
+    } catch (err) {
+      console.error("❌ Decryption failed:", err);
+      throw new Error("Failed to decrypt flow payload");
     }
   }
 
   async processEncryptedSubmission(dto: FlowsEncryptedDto) {
     const decrypted = this.decryptPayload(dto);
 
-    console.log("🚀 Final Decrypted Flow Data:", decrypted);
+    console.log("🔥 DECRYPTED FLOW DATA:", decrypted);
 
-    // WhatsApp requires a BASE64 encoded success response:
-    const responseJson = JSON.stringify({ success: true });
+    const response = Buffer.from(JSON.stringify({ success: true })).toString("base64");
 
-    return Buffer.from(responseJson).toString("base64");
+    return response;
   }
 }
