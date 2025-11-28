@@ -7,7 +7,7 @@ import { UsersModule } from './users/users.module';
 import { LlmModule } from './llm/llm.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { OnboardingUser } from './entities/users.entity';
-import { WhatsappFlowModule } from './flow/whatsapp-flow.module';
+import { OnboardingFlowModule } from './flows/on-boarding/onboarding-flow.module';
 
 
 @Module({
@@ -23,7 +23,7 @@ import { WhatsappFlowModule } from './flow/whatsapp-flow.module';
       entities: [OnboardingUser],
       synchronize: false, // true only in dev if you like
     }),
-    WhatsappModule,
+   // WhatsappModule,
     ConfigModule.forRoot({
       isGlobal: true,
       load: [configuration],
@@ -31,7 +31,8 @@ import { WhatsappFlowModule } from './flow/whatsapp-flow.module';
     }),
     UsersModule,
     LlmModule,
-    WhatsappFlowModule,
+    OnboardingFlowModule,
+    
   ],
 })
 export class AppModule {}
