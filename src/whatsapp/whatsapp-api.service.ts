@@ -67,10 +67,10 @@ async sendFlowMessage(params: {
 },
 body: {
   text:
-    "Welcome to Billy — your secure, AI-powered financial assistant. 🤖✨\n\n" +
+    "\n\nWelcome to Billy — your secure, AI-powered financial assistant. 🤖✨\n\n" +
     "With Billy, you can effortlessly transfer money, pay bills, buy airtime & data, and manage your daily finances with ease. 💳⚡\n\n" +
     "You can also trade crypto securely — buy, sell, and convert funds instantly at the best rates. 🚀💱\n\n" +
-    "Let’s complete your onboarding to unlock all features."
+    "Let’s complete your onboarding to unlock all features.\n\n"
 },
 footer: { 
   text: '🔒 Powered by Gooddeeds' 
