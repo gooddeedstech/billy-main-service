@@ -31,52 +31,52 @@ export class WhatsappAPIWebhookController {
   /**
    * REAL WHATSAPP MESSAGES (POST)
    */
-//  @Post()
-// @HttpCode(200)
-// async handleWebhook(
-//   @Body() body: any,
-//   @Headers('x-hub-signature-256') signature: string,
-// ) {
-//   this.logger.debug("📩 Incoming Webhook", JSON.stringify(body, null, 2));
+ @Post()
+@HttpCode(200)
+async handleWebhook(
+  @Body() body: any,
+  @Headers('x-hub-signature-256') signature: string,
+) {
+  this.logger.debug("📩 Incoming Webhook", JSON.stringify(body, null, 2));
 
-//   // Track message statuses
-//   if (body.entry?.[0]?.changes?.[0]?.value?.statuses) {
-//     const status = body.entry[0].changes[0].value.statuses[0];
-//     this.logger.log(`📡 Message Status → ${status.status} (ID: ${status.id})`);
+  // Track message statuses
+  if (body.entry?.[0]?.changes?.[0]?.value?.statuses) {
+    const status = body.entry[0].changes[0].value.statuses[0];
+    this.logger.log(`📡 Message Status → ${status.status} (ID: ${status.id})`);
+  }
+
+  // Track user replies
+  if (body.entry?.[0]?.changes?.[0]?.value?.messages) {
+    const msg = body.entry[0].changes[0].value.messages[0];
+    this.logger.log(`💬 User Message → ${msg.from}: "${msg.text?.body}"`);
+  }
+
+  return this.webhookService.handleIncomingWebhook(body)
+}
+
+// @Post()
+// @HttpCode(200)
+// async handleWebhook(@Body() body: any) {
+//   this.logger.debug("📨 Incoming WhatsApp Webhook", JSON.stringify(body, null, 2));
+
+//   const entry = body?.entry?.[0];
+//   const change = entry?.changes?.[0];
+//   const value = change?.value;
+
+//   // 1. Incoming user text message
+//   if (value?.messages?.length) {
+//     const msg = value.messages[0];
+
+//     this.logger.log(`💬 User Message From ${msg.from}: ${msg.text?.body}`);
 //   }
 
-//   // Track user replies
-//   if (body.entry?.[0]?.changes?.[0]?.value?.messages) {
-//     const msg = body.entry[0].changes[0].value.messages[0];
-//     this.logger.log(`💬 User Message → ${msg.from}: "${msg.text?.body}"`);
+//   // 2. Message status update
+//   if (value?.statuses?.length) {
+//     const s = value.statuses[0];
+//     this.logger.log(`📡 Status Update: ${s.status} for message ID ${s.id}`);
 //   }
 
 //   return 'OK';
 // }
-
-@Post()
-@HttpCode(200)
-async handleWebhook(@Body() body: any) {
-  this.logger.debug("📨 Incoming WhatsApp Webhook", JSON.stringify(body, null, 2));
-
-  const entry = body?.entry?.[0];
-  const change = entry?.changes?.[0];
-  const value = change?.value;
-
-  // 1. Incoming user text message
-  if (value?.messages?.length) {
-    const msg = value.messages[0];
-
-    this.logger.log(`💬 User Message From ${msg.from}: ${msg.text?.body}`);
-  }
-
-  // 2. Message status update
-  if (value?.statuses?.length) {
-    const s = value.statuses[0];
-    this.logger.log(`📡 Status Update: ${s.status} for message ID ${s.id}`);
-  }
-
-  return 'OK';
-}
 
 }
