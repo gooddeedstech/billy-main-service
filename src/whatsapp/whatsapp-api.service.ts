@@ -46,17 +46,18 @@ export class WhatsappApiService {
 async sendFlowMessage(params: {
   to: string;
   flowId: string;
-  flowToken: string;
-  flowName: string;
+  flowToken?: string;   // optional for unsecured flows
+  flowName: string;     // MUST match the configured Flow Name
   bodyText?: string;
 }) {
   const { to, flowId, flowToken, flowName, bodyText } = params;
 
   try {
-    const payload = {
+    const payload: any = {
       messaging_product: 'whatsapp',
       to,
       type: 'interactive',
+
       interactive: {
         type: 'flow',
 
@@ -74,16 +75,18 @@ async sendFlowMessage(params: {
         },
 
         action: {
-          name: flowName,   // MUST MATCH your flow "name" in WhatsApp Manager
+          name: flowName, // EXACT name in WhatsApp Manager
           parameters: {
             flow_id: flowId,
-            flow_token: flowToken
-            // ❗ DO NOT INCLUDE "version"
-            // ❗ DO NOT INCLUDE "mode"
-          }
+          },
         },
       },
     };
+
+    // Only add flow_token if provided
+    if (flowToken) {
+      payload.interactive.action.parameters.flow_token = flowToken;
+    }
 
     await firstValueFrom(
       this.http.post(this.apiUrl, payload, { headers: this.headers() }),
@@ -93,7 +96,7 @@ async sendFlowMessage(params: {
   } catch (error) {
     this.logger.error(
       `❌ Failed to start WhatsApp Flow: ${JSON.stringify(
-        error.response?.data || error,
+        error.response?.data || error
       )}`,
     );
   }

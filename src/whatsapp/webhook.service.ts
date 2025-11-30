@@ -46,11 +46,11 @@ export class WhatsappWebhookService {
     if (!user) {
       this.logger.log(`🆕 New user detected: ${from}`);
 
-      // if (isOnboardingKeyword) {
-      //   this.logger.log(`🚀 Starting onboarding flow for ${from}`);
-      //   await this.onboardingFlow.startOnboardingFlow(from);
-      //   return 'onboarding_started';
-      // }
+      if (isOnboardingKeyword) {
+        this.logger.log(`🚀 Starting onboarding flow for ${from}`);
+        await this.onboardingFlow.startOnboardingFlow(from);
+        return 'onboarding_started';
+      }
 
       // No keyword yet → Prompt user nicely
       await this.whatsappApi.sendText(
