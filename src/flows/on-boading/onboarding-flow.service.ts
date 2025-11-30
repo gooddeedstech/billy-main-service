@@ -222,13 +222,12 @@ Reply *menu* to see what I can do.`
   async startOnboardingFlow(phoneNumber: string) {
     const flowId = '834331069565896'; // Billing Onboarding Users
     const flowName = "Billing Onboarding Users";
+    const flowCTA = "Begin OnBparding";
     const flowToken = process.env.FLOW_PRIVATE_KEY
     await this.whatsappApi.sendFlowMessage({
       to: phoneNumber,
-      flowId,
-      flowToken,
+      flowCTA,
       flowName,
-      bodyText: "Let's get you started with Billy 🚀",
     });
   }
 }

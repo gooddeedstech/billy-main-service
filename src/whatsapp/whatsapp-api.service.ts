@@ -45,59 +45,46 @@ export class WhatsappApiService {
    */
 async sendFlowMessage(params: {
   to: string;
-  flowId: string;
-  flowToken?: string;   // optional for unsecured flows
-  flowName: string;     // MUST match the configured Flow Name
-  bodyText?: string;
+  flowName: string;   // e.g. billy_onboarding_v1
+  flowCTA: string;    // e.g. Start
+  flowVersion?: string; // default: 3
 }) {
-  const { to, flowId, flowToken, flowName, bodyText } = params;
+  const { to, flowName, flowCTA, flowVersion = "3" } = params;
 
   try {
-    const payload: any = {
+    const payload = {
       messaging_product: 'whatsapp',
+      recipient_type: 'individual',
       to,
       type: 'interactive',
 
       interactive: {
         type: 'flow',
 
-        header: {
-          type: 'text',
-          text: 'Billy Onboarding',
-        },
-
-        body: {
-          text: bodyText ?? 'Let’s get you started with Billy 🚀',
-        },
-
-        footer: {
-          text: 'Powered by Gooddeeds Technologies',
-        },
+        header: { type: 'text', text: 'Billy Onboarding' },
+        body: { text: 'Let’s get you started 🚀' },
+        footer: { text: 'Powered by Gooddeeds' },
 
         action: {
-          name: flowName, // EXACT name in WhatsApp Manager
+          name: 'flow',
           parameters: {
-            flow_id: flowId,
-          },
-        },
-      },
+            flow_message_version: flowVersion,
+            flow_name: flowName,
+            flow_cta: flowCTA,
+          }
+        }
+      }
     };
 
-    // Only add flow_token if provided
-    if (flowToken) {
-      payload.interactive.action.parameters.flow_token = flowToken;
-    }
-
     await firstValueFrom(
-      this.http.post(this.apiUrl, payload, { headers: this.headers() }),
+      this.http.post(this.apiUrl, payload, { headers: this.headers() })
     );
 
-    this.logger.log(`🚀 WhatsApp Flow started successfully for ${to}`);
+    this.logger.log(`🚀 Flow triggered successfully for ${to}`);
+
   } catch (error) {
     this.logger.error(
-      `❌ Failed to start WhatsApp Flow: ${JSON.stringify(
-        error.response?.data || error
-      )}`,
+      `❌ Failed to start WhatsApp Flow: ${JSON.stringify(error.response?.data || error)}`
     );
   }
 }
