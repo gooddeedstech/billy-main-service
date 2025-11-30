@@ -131,7 +131,7 @@ footer: {
       type: 'template',
       template: {
         name: 'billy_onboarding_start',
-        language: { code: 'en_US' },
+        language: { code: 'en' },
         components: [
           {
             type: 'body',

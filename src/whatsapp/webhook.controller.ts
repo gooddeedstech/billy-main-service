@@ -63,10 +63,10 @@ async handleIncoming(@Body() body: any) {
   await new Promise((res) => setTimeout(res, 1200));
 
   // 4) Send onboarding template
-  await this.whatsappApiService.sendOnboardingTemplate(from, finalName);
+  return await this.whatsappApiService.sendOnboardingTemplate(from, finalName);
 
   // 5) Continue processing your flow
-  return this.webhookService.handleIncomingWebhook(body);
+   this.webhookService.handleIncomingWebhook(body);
 }
 //  @Post()
 //   @HttpCode(200)
