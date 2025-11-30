@@ -21,9 +21,9 @@ import { Tier } from '@/entities/tier.entity';
      HttpModule,
      TypeOrmModule.forFeature([
       OnboardingUser,
-      // UserBeneficiary,
-      // UserTransaction,
-      // Tier,
+      UserBeneficiary,
+      UserTransaction,
+      Tier,
     ]),
     WhatsappApiModule,   
   ],
