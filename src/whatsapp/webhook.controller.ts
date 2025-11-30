@@ -41,9 +41,10 @@ async handleIncoming(@Body() body: any) {
   const entry = body?.entry?.[0];
   const changes = entry?.changes?.[0];
   const msg = changes?.value?.messages?.[0];
-
+   this.logger.debug('📥 Incoming WhatsApp Webhook');
+  console.log(body)
   if (!msg) return 'OK';
-
+console.log('SAMUEL')
   const from = msg.from;
   const messageId = msg.id;
   const text = msg.text?.body;
