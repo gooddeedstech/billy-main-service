@@ -32,7 +32,7 @@ import { RubiesVirtualAccountModule } from './rubies/rubies-virtual-account.modu
     LlmModule,
     OnboardingFlowModule,
     WhatsappApiModule,
-    RubiesVirtualAccountModule,
+   // RubiesVirtualAccountModule,
     
   ],
 })
