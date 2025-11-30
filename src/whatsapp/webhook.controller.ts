@@ -55,7 +55,7 @@ async handleIncoming(@Body() body: any) {
   await new Promise((res) => setTimeout(res, 1200));
 
   // 👇 Then process and send your real reply
-  await this.whatsappApiService.sendText(from, `You said: ${text}`);
+ // await this.whatsappApiService.sendText(from, `You said: ${text}`);
 
   return  this.webhookService.handleIncomingWebhook(body)
 }
