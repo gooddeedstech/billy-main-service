@@ -29,7 +29,7 @@ async function bootstrap() {
   );
 
   // 🌍 API Prefix (optional)
-  app.setGlobalPrefix('api');
+  //app.setGlobalPrefix('api');
 
   // 📘 Swagger Documentation
   const config = new DocumentBuilder()
