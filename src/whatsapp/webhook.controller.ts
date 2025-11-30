@@ -1,11 +1,15 @@
 import { Controller, Get, Query, ForbiddenException, Logger, Post, Body, Headers, HttpCode } from '@nestjs/common';
 import { WhatsappWebhookService } from './webhook.service';
+import { WhatsappEventFilterService } from './filters/whatsapp-event-filter.service';
 
 @Controller('whatsapp/webhook')
 export class WhatsappAPIWebhookController {
   private readonly logger = new Logger(WhatsappAPIWebhookController.name);
+  private readonly processedEvents = new Set<string>();
 
-  constructor(private readonly webhookService: WhatsappWebhookService) {}
+  constructor(private readonly webhookService: WhatsappWebhookService,
+     private readonly filter: WhatsappEventFilterService,
+  ) {}
 
   /**
    * META WEBHOOK VERIFICATION (REQUIRED)
@@ -28,55 +32,52 @@ export class WhatsappAPIWebhookController {
     throw new ForbiddenException('Invalid verify token');
   }
 
-  /**
-   * REAL WHATSAPP MESSAGES (POST)
-   */
  @Post()
-@HttpCode(200)
-async handleWebhook(
-  @Body() body: any,
-  @Headers('x-hub-signature-256') signature: string,
-) {
-  this.logger.debug("📩 Incoming Webhook", JSON.stringify(body, null, 2));
+  @HttpCode(200)
+  async handleWebhook(@Body() body: any) {
+    this.logger.debug('📥 Incoming WhatsApp Webhook');
 
-  // Track message statuses
-  if (body.entry?.[0]?.changes?.[0]?.value?.statuses) {
-    const status = body.entry[0].changes[0].value.statuses[0];
-    this.logger.log(`📡 Message Status → ${status.status} (ID: ${status.id})`);
+    try {
+      const entry = body.entry?.[0];
+      const change = entry?.changes?.[0];
+      const value = change?.value;
+
+      if (!value) return;
+
+      const eventId =
+        value?.messages?.[0]?.id ||
+        value?.statuses?.[0]?.id ||
+        entry.id;
+
+      // 🔁 1. Duplicate filter
+      if (this.filter.isDuplicate(eventId, this.processedEvents)) return;
+
+      // 🚫 2. Ignore Business Account Locked
+      if (this.filter.isBusinessAccountLockedEvent(change)) return;
+
+      // ⏳ 3. Ignore old events
+      const timestamp =
+        value?.statuses?.[0]?.timestamp ||
+        value?.messages?.[0]?.timestamp;
+
+      if (timestamp && this.filter.isOldEvent(Number(timestamp))) return;
+
+      // 🎯 4. Now process REAL message events
+      if (value.messages) {
+        const msg = value.messages[0];
+        this.logger.log(`💬 New message from ${msg.from}: ${msg.text?.body}`);
+        this.webhookService.handleIncomingWebhook(msg.text?.body)
+      }
+
+      if (value.statuses) {
+        const status = value.statuses[0];
+        this.logger.log(
+          `📡 Status Update → ID: ${status.id}, Status: ${status.status}`,
+        );
+      }
+    } catch (err) {
+      this.logger.error('Webhook parse error', err);
+    }
   }
-
-  // Track user replies
-  if (body.entry?.[0]?.changes?.[0]?.value?.messages) {
-    const msg = body.entry[0].changes[0].value.messages[0];
-    this.logger.log(`💬 User Message → ${msg.from}: "${msg.text?.body}"`);
-  }
-
-  return this.webhookService.handleIncomingWebhook(body)
-}
-
-// @Post()
-// @HttpCode(200)
-// async handleWebhook(@Body() body: any) {
-//   this.logger.debug("📨 Incoming WhatsApp Webhook", JSON.stringify(body, null, 2));
-
-//   const entry = body?.entry?.[0];
-//   const change = entry?.changes?.[0];
-//   const value = change?.value;
-
-//   // 1. Incoming user text message
-//   if (value?.messages?.length) {
-//     const msg = value.messages[0];
-
-//     this.logger.log(`💬 User Message From ${msg.from}: ${msg.text?.body}`);
-//   }
-
-//   // 2. Message status update
-//   if (value?.statuses?.length) {
-//     const s = value.statuses[0];
-//     this.logger.log(`📡 Status Update: ${s.status} for message ID ${s.id}`);
-//   }
-
-//   return 'OK';
-// }
 
 }
