@@ -6,7 +6,7 @@ import * as path from 'path';
 
 // Adjust imports to your actual services
 import { MetaFlowEncryptedDto } from './dtos/meta-flow-encrypted.dto';
-import { WhatsappApiService } from '@/whatsapp-api/whatsapp-api.service';
+import { WhatsappApiService } from '@/whatsapp/whatsapp-api.service';
 
 
 @Injectable()

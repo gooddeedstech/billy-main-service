@@ -3,7 +3,12 @@ import {
   CreateDateColumn,
   Entity,
   PrimaryGeneratedColumn,
+  OneToMany,
+  ManyToOne,
 } from 'typeorm';
+import { UserBeneficiary } from './user_beneficiaries.entity';
+import { UserTransaction } from './user_transactions.entity';
+import { Tier } from './tier.entity';
 
 @Entity({ name: 'onboarding_users' })
 export class OnboardingUser {
@@ -23,16 +28,40 @@ export class OnboardingUser {
   email?: string;
 
   @Column({ type: 'date', nullable: true })
-  dob?: string; // YYYY-MM-DD
+  dob?: string;
 
   @Column({ nullable: true })
-  gender?: string; 
+  gender?: string;
 
   @Column({ nullable: true })
-  verificationMethod?: string; // 'bvn' | 'nin'
+  verificationMethod?: string;
 
+  /** 🏦 RUBIES Virtual Account Number */
   @Column({ nullable: true })
-  verificationId?: string; // BVN or NIN
+  virtualAccount?: string;
+
+  /** 🏦 Name returned from Rubies virtual account creation */
+  @Column({ nullable: true })
+  virtualAccountName?: string;
+
+  /** 🏦 Customer ID returned from Rubies (BUS00000...) */
+  @Column({ nullable: true })
+  accountCustomerId?: string;
+
+  /** 🔐 Hashed PIN */
+  @Column({ name: 'pin_hash', nullable: true })
+  pinHash?: string;
+
+  /** ➕ Beneficiaries */
+  @OneToMany(() => UserBeneficiary, (b) => b.user)
+  beneficiaries!: UserBeneficiary[];
+
+  /** 💰 Transactions */
+  @OneToMany(() => UserTransaction, (t) => t.user)
+  transactions!: UserTransaction[];
+
+  @ManyToOne(() => Tier, (tier) => tier.users, { nullable: true })
+  tier?: Tier; 
 
   @CreateDateColumn()
   createdAt!: Date;

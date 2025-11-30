@@ -2,13 +2,12 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import configuration from './config/configuration';
 import { validationSchema } from './config/validation-schema';
-import { WhatsappModule } from './whatsapp/whatsapp.module';
-import { UsersModule } from './users/users.module';
 import { LlmModule } from './llm/llm.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { OnboardingUser } from './entities/users.entity';
 import { OnboardingFlowModule } from './flows/on-boading/onboarding-flow.module';
-import { WhatsappApiModule } from './whatsapp-api/whatsapp-api.module';
+import { WhatsappApiModule } from './whatsapp/whatsapp-api.module';
+import { RubiesVirtualAccountModule } from './rubies/rubies-virtual-account.module';
 
 
 @Module({
@@ -21,8 +20,8 @@ import { WhatsappApiModule } from './whatsapp-api/whatsapp-api.module';
       // your DB config 
       type: 'postgres',
       url: process.env.DATABASE_URL,
-      entities: [OnboardingUser],
-      synchronize: false, // true only in dev if you like
+      autoLoadEntities: true, 
+      synchronize: true, 
     }),
    // WhatsappModule,
     ConfigModule.forRoot({
@@ -30,10 +29,10 @@ import { WhatsappApiModule } from './whatsapp-api/whatsapp-api.module';
       load: [configuration],
       validationSchema,
     }),
-    UsersModule,
     LlmModule,
     OnboardingFlowModule,
     WhatsappApiModule,
+    RubiesVirtualAccountModule,
     
   ],
 })
