@@ -43,11 +43,11 @@ export class WhatsappApiService {
   /**
    * 🟦 SEND FLOW MESSAGE (Onboarding Flow Start)
    */
- async sendFlowMessage(params: {
+async sendFlowMessage(params: {
   to: string;
   flowId: string;
   flowToken: string;
-  flowName: string; // Name assigned in WhatsApp Developer App
+  flowName: string;
   bodyText?: string;
 }) {
   const { to, flowId, flowToken, flowName, bodyText } = params;
@@ -74,13 +74,13 @@ export class WhatsappApiService {
         },
 
         action: {
-          name: flowName, // MUST MATCH WHAT YOU SET IN WHATSAPP DEVELOPER APP
+          name: flowName,   // MUST MATCH your flow "name" in WhatsApp Manager
           parameters: {
             flow_id: flowId,
-            flow_token: flowToken,
-            version: '3.0',
-            mode: 'draft', // or remove this entirely in production
-          },
+            flow_token: flowToken
+            // ❗ DO NOT INCLUDE "version"
+            // ❗ DO NOT INCLUDE "mode"
+          }
         },
       },
     };
@@ -89,7 +89,7 @@ export class WhatsappApiService {
       this.http.post(this.apiUrl, payload, { headers: this.headers() }),
     );
 
-    this.logger.log(`🚀 WhatsApp Flow started for ${to}`);
+    this.logger.log(`🚀 WhatsApp Flow started successfully for ${to}`);
   } catch (error) {
     this.logger.error(
       `❌ Failed to start WhatsApp Flow: ${JSON.stringify(
