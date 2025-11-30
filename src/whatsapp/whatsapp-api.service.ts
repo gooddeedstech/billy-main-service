@@ -6,9 +6,9 @@ import { firstValueFrom } from 'rxjs';
 export class WhatsappApiService {
   private readonly logger = new Logger(WhatsappApiService.name);
 
-  private readonly token = process.env.WHATSAPP_ACCESS_TOKEN;
+  private readonly token = process.env.WHATSAPP_TOKEN;
   private readonly phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID; // Example: "1234567890"
-  private readonly apiUrl = `https://graph.facebook.com/v20.0/${this.phoneNumberId}/messages`;
+  private readonly apiUrl = `https://graph.facebook.com/v24.0/${this.phoneNumberId}/messages`;
 
   constructor(private readonly http: HttpService) {}
 
