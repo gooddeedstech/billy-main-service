@@ -127,21 +127,18 @@ async sendOnboardingTemplate(to: string, firstName: string) {
   try {
     const payload = {
       messaging_product: "whatsapp",
-      recipient_type: "individual",
       to,
       type: "template",
       template: {
         name: "billy_onboarding_start",
-        language: {
-          code: "en" // must match WhatsApp template
-        },
+        language: { code: "en" },
         components: [
           {
             type: "body",
             parameters: [
               {
                 type: "text",
-                text: firstName
+                text: firstName || "there"
               }
             ]
           }
@@ -149,11 +146,15 @@ async sendOnboardingTemplate(to: string, firstName: string) {
       }
     };
 
-    await firstValueFrom(this.http.post(this.apiUrl, payload, { headers: this.headers() }));
+    await firstValueFrom(
+      this.http.post(this.apiUrl, payload, { headers: this.headers() })
+    );
 
     this.logger.log(`🚀 Onboarding template sent to ${to}`);
-  } catch (e) {
-    this.logger.error(`❌ Template send failed: ${JSON.stringify(e.response?.data || e)}`);
+  } catch (error) {
+    this.logger.error(
+      `❌ Template send failed: ${JSON.stringify(error.response?.data || error)}`
+    );
   }
 }
 
