@@ -133,7 +133,7 @@ async sendOnboardingTemplate(to: string, firstName: string) {
       template: {
         name: "billy_onboarding_start",
         language: {
-          code: "en_US" // must match WhatsApp template
+          code: "en" // must match WhatsApp template
         },
         components: [
           {
