@@ -59,6 +59,8 @@ console.log('SAMUEL')
   //const user = await this.userService.findByPhone(from);
   const finalName = firstName;
 
+  console.log(`PROFILE - ${finalName}`)
+
   // 3) Typing indicator
   await this.whatsappApiService.sendTypingIndicator(from, messageId);
   await new Promise((res) => setTimeout(res, 1200));
