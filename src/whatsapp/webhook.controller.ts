@@ -36,6 +36,8 @@ export class WhatsappAPIWebhookController {
   @HttpCode(200)
   async handleWebhook(@Body() body: any) {
     this.logger.debug('📥 Incoming WhatsApp Webhook');
+    console.log(body)
+  return  this.webhookService.handleIncomingWebhook(body)
 
     try {
       const entry = body.entry?.[0];
