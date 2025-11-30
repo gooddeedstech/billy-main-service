@@ -30,7 +30,7 @@ import { RubiesVirtualAccountModule } from './rubies/rubies-virtual-account.modu
       validationSchema,
     }),
     LlmModule,
-    OnboardingFlowModule,
+    //OnboardingFlowModule,
     WhatsappApiModule,
    // RubiesVirtualAccountModule,
     
