@@ -123,6 +123,40 @@ footer: {
     }
   }
 
+  async sendOnboardingTemplate(to: string, firstName: string) {
+  try {
+    const payload = {
+      messaging_product: 'whatsapp',
+      to,
+      type: 'template',
+      template: {
+        name: 'billy_onboarding_start',
+        language: { code: 'en_US' },
+        components: [
+          {
+            type: 'body',
+            parameters: [
+              { type: 'text', text: firstName }  // {{1}}
+            ]
+          }
+        ]
+      }
+    };
+
+    await firstValueFrom(
+      this.http.post(this.apiUrl, payload, { headers: this.headers() })
+    );
+
+    this.logger.log(`📨 Sent onboarding template to ${to}`);
+  } catch (error) {
+    this.logger.error(
+      `❌ Failed to send onboarding template: ${JSON.stringify(error.response?.data || error)}`
+    );
+  }
+}
+
+  
+
   async sendTypingIndicator(to: string, messageId: string) {
   try {
     const payload = {

@@ -48,16 +48,25 @@ async handleIncoming(@Body() body: any) {
   const messageId = msg.id;
   const text = msg.text?.body;
 
-  // 👇 Trigger WhatsApp typing notification
-  await this.whatsappApiService.sendTypingIndicator(from, messageId);
+  // 1) Extract WhatsApp profile name (first name only)
+  const waName =
+    changes?.value?.contacts?.[0]?.profile?.name || null;
 
-  // Wait a bit to make it look natural (optional)
+  const firstName = waName?.split(' ')?.[0] ?? 'there';
+
+  // 2) Optionally load user from DB
+  //const user = await this.userService.findByPhone(from);
+  const finalName = firstName;
+
+  // 3) Typing indicator
+  await this.whatsappApiService.sendTypingIndicator(from, messageId);
   await new Promise((res) => setTimeout(res, 1200));
 
-  // 👇 Then process and send your real reply
- // await this.whatsappApiService.sendText(from, `You said: ${text}`);
+  // 4) Send onboarding template
+  await this.whatsappApiService.sendOnboardingTemplate(from, finalName);
 
-  return  this.webhookService.handleIncomingWebhook(body)
+  // 5) Continue processing your flow
+  return this.webhookService.handleIncomingWebhook(body);
 }
 //  @Post()
 //   @HttpCode(200)
