@@ -61,9 +61,16 @@ async sendFlowMessage(params: {
       interactive: {
         type: 'flow',
 
-        header: { type: 'text', text: 'Billy Onboarding' },
-        body: { text: 'Let’s get you started 🚀' },
-        footer: { text: 'Powered by Gooddeeds' },
+       header: { 
+  type: 'text', 
+  text: '🚀 Billy Onboarding' 
+},
+body: { 
+  text: 'Welcome to Billy — your secure, AI-powered financial assistant. Let’s complete your onboarding to unlock transfers, bill payments, and more. 💳✨' 
+},
+footer: { 
+  text: '🔒 Powered by Gooddeeds Technologies' 
+},
 
         action: {
           name: 'flow',
@@ -111,4 +118,31 @@ async sendFlowMessage(params: {
       this.logger.error(`❌ Template send error: ${err.response?.data || err.message}`);
     }
   }
+
+  async sendTypingIndicator(to: string, messageId: string) {
+  try {
+    const payload = {
+      messaging_product: 'whatsapp',
+      status: 'read',
+      message_id: messageId,
+      typing_indicator: {
+        type: 'text'
+      },
+    };
+
+    await firstValueFrom(
+      this.http.post(
+        this.apiUrl,   // same URL used for sending messages
+        payload,
+        { headers: this.headers() }
+      ),
+    );
+
+    this.logger.log(`🟢 Typing indicator sent to ${to}`);
+  } catch (error) {
+    this.logger.error(
+      `❌ Failed to send typing indicator: ${JSON.stringify(error.response?.data || error)}`,
+    );
+  }
+}
 }
