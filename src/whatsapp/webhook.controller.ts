@@ -35,7 +35,8 @@ export class WhatsappAPIWebhookController {
   }
 
 
-  @Post('webhook')
+@Post()
+@HttpCode(200)
 async handleIncoming(@Body() body: any) {
   const entry = body?.entry?.[0];
   const changes = entry?.changes?.[0];
