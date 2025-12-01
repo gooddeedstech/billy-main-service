@@ -1,6 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { WhatsappApiService } from './whatsapp-api.service';
-import { OnboardingFlowService } from '@/flows/on-boading/onboarding-flow.service';
 import { UserService } from '@/flows/on-boading/services/user.service';
 import { TransferService } from '@/billy/bank-transfer/transfer.service';
 import { CacheService } from '@/cache/cache.service';
@@ -10,254 +9,251 @@ import { VasService } from '@/billy/vas.service';
 export class WhatsappWebhookService {
   private readonly logger = new Logger(WhatsappWebhookService.name);
 
-  // All onboarding triggers
-  private readonly onboardingTriggers = [
-    'hi',
-    'hello',
-    'start',
-    'get started',
-    'hey billy',
-    'billy',
-    'hey',
-    'yo',
-  ];
-
   constructor(
     private readonly whatsappApi: WhatsappApiService,
-    private readonly onboardingFlow: OnboardingFlowService,
     private readonly userService: UserService,
     private readonly transferService: TransferService,
     private readonly cache: CacheService,
     private readonly vasService: VasService,
-    // private readonly billyAi: BillyAiService,
   ) {}
 
+  /** ======================================================
+   * 📥 MAIN MESSAGE HANDLER
+   * ====================================================== */
   async handleIncomingWebhook(body: any) {
-  this.logger.debug('📥 Incoming WhatsApp Webhook');
+    this.logger.debug('📥 Incoming WhatsApp Webhook');
 
-  const entry = body?.entry?.[0]?.changes?.[0]?.value;
-  if (!entry) return 'ignored';
+    const entry = body?.entry?.[0]?.changes?.[0]?.value;
+    if (!entry) return 'ignored';
 
-  const msg = entry.messages?.[0];
-  const flow = entry.interactive?.flow_response;
-  const contact = entry.contacts?.[0];
+    const msg = entry.messages?.[0];
+    const flowResponse = entry.interactive?.flow_response;
+    const contact = entry.contacts?.[0];
 
-  if (!msg) return 'ignored';
+    if (!msg) return 'ignored';
 
-  const from = msg.from;
-  const text = msg.text?.body?.trim() || '';
-  const lower = text.toLowerCase();
-  const messageId = msg.id;
+    const from = msg.from;
+    const text = msg.text?.body?.trim() || '';
+    const lower = text.toLowerCase();
+    const messageId = msg.id;
 
- const session = await this.cache.get(`tx:${from}`);
+    // Extract name
+    const profileName = contact?.profile?.name ?? 'there';
+    const firstName = profileName.split(' ')[0];
 
-if (session) {
-  switch (session.step) {
-    case 'ENTER_AMOUNT':
-      return await this.vasService.handleTransferAmount(from, text);
+    /** ======================================================
+     * 1️⃣ FLOW SUBMISSION RESPONSE (highest priority)
+     * ====================================================== */
+    if (flowResponse) return this.handleFlowSubmission(from, flowResponse, messageId);
 
-    case 'ENTER_ACCOUNT':
-      return await this.vasService.handleAccountNumber(from, text);
+    /** ======================================================
+     * 2️⃣ TRANSFER SESSION ROUTER
+     * ====================================================== */
+    const session = await this.cache.get(`tx:${from}`);
+    if (session) return this.routeTransferSession(session, from, text);
 
-    case 'ENTER_BANK':
-      return await this.vasService.handleBankName(from, text);
+    /** ======================================================
+     * 3️⃣ INTERACTIVE MENU SELECTED
+     * ====================================================== */
+    if (msg.type === 'interactive' && msg.interactive?.type === 'list_reply') {
+      return this.handleMenuSelection(from, msg.interactive.list_reply.id, messageId);
+    }
 
-    case 'CONFIRM':
-      return await this.vasService.handleTransferConfirmation(from, text);
+    /** ======================================================
+     * 4️⃣ EXPLICIT HELP / MENU COMMAND
+     * ====================================================== */
+    if (lower === 'help' || lower === 'menu') {
+      await this.typing(from, messageId);
+      return this.whatsappApi.sendMenu(from, messageId);
+    }
 
-    case 'ENTER_PIN':
-      return await this.vasService.handlePinEntry(from, text);
+    /** ======================================================
+     * 5️⃣ CHECK USER (NEW OR EXISTING)
+     * ====================================================== */
+    const user = await this.userService.findByPhone(from);
+
+    // NEW USER → Onboarding template
+    if (!user) {
+      await this.typing(from, messageId);
+      return this.whatsappApi.sendOnboardingTemplate(from, firstName);
+    }
+
+    /** ======================================================
+     * 6️⃣ NATURAL LANGUAGE TRANSFER ("transfer 5k to 0023…")
+     * ====================================================== */
+    if (lower.startsWith('transfer') || lower.startsWith('send')) {
+      return this.handleNaturalTransfer(from, text);
+    }
+
+    /** ======================================================
+     * 7️⃣ PIN HANDLING
+     * ====================================================== */
+    if (/^\d{4}$/.test(text)) {
+      return this.handlePinConfirmation(from, text);
+    }
+
+    /** ======================================================
+     * 8️⃣ SAVE BENEFICIARY
+     * ====================================================== */
+    if (lower === 'yes') {
+      return this.handleSaveBeneficiary(from);
+    }
+
+    /** ======================================================
+     * 9️⃣ FALLBACK → SHOW MENU
+     * ====================================================== */
+    await this.typing(from, messageId);
+    return this.whatsappApi.sendMenu(from, messageId);
   }
-}
 
-  /** -------------------------------------------------------
-   * 🧩 A. FLOW SUBMISSION HANDLING
-   * ------------------------------------------------------- */
-  if (flow) {
+  /* -------------------------------------------------------
+     🌟 FLOW HANDLER
+  -------------------------------------------------------- */
+  private async handleFlowSubmission(from: string, flow: any, messageId: string) {
     const flowData = flow.data || {};
     this.logger.log(`📄 Flow submitted by ${from}`);
-    
+    this.logger.debug(flowData);
+
     try {
       await this.userService.onboardUser(from, flowData);
 
-      await this.whatsappApi.sendTypingIndicator(from, messageId);
-      await this.delay(900);
-
+      await this.typing(from, messageId);
       await this.whatsappApi.sendText(
         from,
         `🎉 *Welcome to Billy!* Your account has been created successfully.`
       );
 
       return 'flow_onboarding_completed';
-    } catch (error) {
-      await this.whatsappApi.sendText(
-        from,
-        `⚠️ Onboarding failed: ${error.message}`
-      );
+    } catch (err) {
+      await this.whatsappApi.sendText(from, `⚠️ Onboarding failed: ${err.message}`);
       return 'flow_onboarding_error';
     }
   }
 
-  /** -------------------------------------------------------
-   * 🧩 B. Extract User First Name
-   * ------------------------------------------------------- */
-  const profileName = contact?.profile?.name ?? 'there';
-  const firstName = profileName.split(' ')[0];
+  /* -------------------------------------------------------
+     🔄 TRANSFER SESSION ROUTER
+  -------------------------------------------------------- */
+  private async routeTransferSession(session: any, from: string, text: string) {
+    switch (session.step) {
+      case 'ENTER_AMOUNT':
+        return this.vasService.handleTransferAmount(from, text);
 
-  this.logger.log(`💬 From ${from}: ${text}`);
+      case 'ENTER_ACCOUNT':
+        return this.vasService.handleAccountNumber(from, text);
 
-  /** -------------------------------------------------------
-   * 🆘 C. HELP EXPLICIT COMMAND
-   * ------------------------------------------------------- */
-  if (lower === 'help' || lower === 'menu') {
-    await this.whatsappApi.sendMenu(from, messageId);
-    return 'menu_explicit';
+      case 'ENTER_BANK':
+        return this.vasService.handleBankName(from, text);
+
+      case 'CONFIRM':
+        return this.vasService.handleTransferConfirmation(from, text);
+
+      case 'ENTER_PIN':
+        return this.vasService.handlePinEntry(from, text);
+    }
   }
 
-  /** -------------------------------------------------------
-   * 🧑‍💼 D. Check User Existence
-   * ------------------------------------------------------- */
-  const user = await this.userService.findByPhone(from);
-  const isNewUser = !user;
+  /* -------------------------------------------------------
+     📌 MENU INTERACTION HANDLER
+  -------------------------------------------------------- */
+  private async handleMenuSelection(from: string, choice: string, messageId: string) {
+    this.logger.log(`📌 Menu option selected by ${from}: ${choice}`);
 
-  /** -------------------------------------------------------
-   * 🆕 E. New User → Start Onboarding
-   * ------------------------------------------------------- */
-  if (isNewUser) {
-    this.logger.log(`🆕 New user detected: ${from}`);
+    await this.typing(from, messageId);
 
-    await this.whatsappApi.sendTypingIndicator(from, messageId);
-    await this.delay(1000);
+    switch (choice) {
+      case 'MENU_TRANSFER':
+        return this.vasService.startTransferFlow(from, messageId);
 
-    await this.whatsappApi.sendOnboardingTemplate(from, firstName);
-    return 'onboarding_started';
+      case 'MENU_AIRTIME':
+        return this.vasService.startAirtimeFlow(from, messageId);
+
+      case 'MENU_BILLS':
+        return this.vasService.startBillsFlow(from, messageId);
+
+      case 'MENU_CRYPTO':
+        return this.vasService.startCryptoFlow(from, messageId);
+
+      case 'MENU_BALANCE':
+        return this.vasService.getWalletBalance(from, messageId);
+
+      case 'MENU_HELP':
+        return this.whatsappApi.sendHelpMenu(from, messageId);
+
+      default:
+        await this.whatsappApi.sendText(from, `❗ Invalid option. Please select again.`);
+        return this.whatsappApi.sendMenu(from, messageId);
+    }
   }
 
-  /** -------------------------------------------------------
-   * ️⃣ F. MENU NUMBER HANDLING
-   * ------------------------------------------------------- */
- // Handle Button Selections
-// -------------------------------------------------------
-// 🧩 HANDLE MENU SELECTION (list_reply)
-// -------------------------------------------------------
+  /* -------------------------------------------------------
+     💬 NATURAL LANGUAGE TRANSFER ("transfer 5000 to …")
+  -------------------------------------------------------- */
+  private async handleNaturalTransfer(from: string, text: string) {
+    const res = await this.transferService.startTransfer(from, text);
 
-if (msg?.type === 'interactive' && msg.interactive?.type === 'list_reply') {
-  const choice = msg.interactive.list_reply.id;
-  const from = msg.from;
-  const messageId = msg.id;
+    if (res.ask) return this.whatsappApi.sendText(from, res.ask);
 
-  console.log(choice)
+    if (res.confirm) {
+      const { amount, accountName, accountNumber, bankName } = res.confirm;
 
-  this.logger.log(`📌 Menu option selected by ${from}: ${choice}`);
-   await this.whatsappApi.sendTypingIndicator(from, messageId);
-      await this.delay(900);
-
-  switch (choice) {
-    
-    case "MENU_TRANSFER":
-      return await this.vasService.startTransferFlow(from, messageId);
-
-    case "MENU_AIRTIME":
-      return await this.vasService.startAirtimeFlow(from, messageId);
-
-    case "MENU_BILLS":
-      return await this.vasService.startBillsFlow(from, messageId);
-
-    case "MENU_CRYPTO":
-      return await this.vasService.startCryptoFlow(from, messageId);
-
-    case "MENU_BALANCE":
-      return await this.vasService.getWalletBalance(from, messageId);
-
-    case "MENU_HELP":
-      return await this.whatsappApi.sendHelpMenu(from, messageId);
-
-    default:
-      // fallback
       await this.whatsappApi.sendText(
         from,
-        "❗ Sorry, I didn’t understand that option.\nPlease choose from the menu."
+        `🧾 *Transfer Confirmation*\n\n` +
+        `Send *₦${amount.toLocaleString()}* to:\n\n` +
+        `👤 *${accountName}*\n` +
+        `🏦 *${bankName}*\n` +
+        `🔢 *${accountNumber}*\n\n` +
+        `Enter your *4-digit PIN* to confirm.`
       );
-      return await this.whatsappApi.sendMenu(from, msg.id);
+
+      await this.cache.set(`pending_tx:${from}`, res.confirm);
+    }
+
+    return 'processing_transfer';
   }
-}
 
-if (text.startsWith('transfer') || text.startsWith('send')) {
+  /* -------------------------------------------------------
+     🔐 PIN ENTRY HANDLER
+  -------------------------------------------------------- */
+  private async handlePinConfirmation(from: string, pin: string) {
+    const pending = await this.cache.get(`pending_tx:${from}`);
+    if (!pending) return;
 
-   const res = await this.transferService.startTransfer(from, text);
+    await this.transferService.verifyPin(from, pin);
+    const tx = await this.transferService.executeTransfer(from);
 
-   if (res.ask) {
-     return await this.whatsappApi.sendText(from, res.ask);
-   }
+    await this.whatsappApi.sendText(
+      from,
+      `✅ *Transfer Successful!*\n₦${pending.amount.toLocaleString()} sent to *${pending.accountName}*.`
+    );
 
-   if (res.confirm) {
-     const { amount, accountName, accountNumber, bankName } = res.confirm;
+    await this.whatsappApi.sendText(
+      from,
+      `💾 Would you like to *save this beneficiary*?\nReply *yes* or *no*.`
+    );
 
-     await this.whatsappApi.sendText(
-       from,
-       `🧾 *Transfer Confirmation*\n\n` +
-       `You are about to send *₦${amount.toLocaleString()}* to:\n\n` +
-       `👤 *${accountName}*\n` +
-       `🏦 *${bankName}*\n` +
-       `🔢 *${accountNumber}*\n\n` +
-       `Please enter your *4-digit PIN* to confirm.`
-     );
-     await this.cache.set(`pending_tx:${from}`, res.confirm);
+    return;
+  }
 
-   }
+  /* -------------------------------------------------------
+     💾 SAVE BENEFICIARY
+  -------------------------------------------------------- */
+  private async handleSaveBeneficiary(from: string) {
+    const pending = await this.cache.get(`pending_tx:${from}`);
+    await this.userService.saveBeneficiary(from, pending);
 
-   return 'processing_transfer';
-}
+    return this.whatsappApi.sendText(from, `💾 Beneficiary saved successfully!`);
+  }
 
-if (/^\d{4}$/.test(text)) {
-  
-  const pending = await this.cache.get(`pending_tx:${from}`);
-  if (!pending) return;
+  /* -------------------------------------------------------
+     ⏳ Helper: Typing Simulation
+  -------------------------------------------------------- */
+  private async typing(to: string, messageId: string, delayMs = 900) {
+    await this.whatsappApi.sendTypingIndicator(to, messageId);
+    await this.delay(delayMs);
+  }
 
-  await this.transferService.verifyPin(from, text);
-
-  const tx = await this.transferService.executeTransfer(from);
-
-  await this.whatsappApi.sendText(
-    from,
-    `✅ *Transfer Successful!*\n\n` +
-    `₦${pending.amount.toLocaleString()} sent to *${pending.accountName}*`
-  );
-
-  // Ask to save beneficiary
-  await this.whatsappApi.sendText(
-    from,
-    `💾 Would you like to *save this person* as a beneficiary?\nReply *yes* or *no*`
-  );
-
-  return;
-}
-
-if (text === 'yes') {
-  const pending = await this.cache.get(`pending_tx:${from}`);
-  await this.userService.saveBeneficiary(from, pending);
-
-  await this.whatsappApi.sendText(
-    from,
-    `💾 Beneficiary saved successfully!`
-  );
-}
-
-  /** -------------------------------------------------------
-   * 🧭 H. FALLBACK → SHOW MENU (instead of random AI)
-   * ------------------------------------------------------- */
-  await this.whatsappApi.sendTypingIndicator(from, messageId);
-  await this.delay(700);
-
-  await this.whatsappApi.sendMenu(from, messageId);
-
-  return 'fallback_menu_displayed';
-}
-
-
-private delay(ms: number) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-
+  private delay(ms: number) {
+    return new Promise((res) => setTimeout(res, ms));
+  }
 }
