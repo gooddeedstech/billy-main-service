@@ -112,6 +112,7 @@ private async post(endpoint: string, payload: any) {
     bankCode,
     accountNumber,
   };
+  console.log(payload)
 
   const res = await this.post("name-enquiry", payload);
 
