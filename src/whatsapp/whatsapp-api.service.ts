@@ -1,6 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
+import { InjectRepository } from '@nestjs/typeorm';
+import { OnboardingUser } from '@/entities/users.entity';
+import { Repository } from 'typeorm';
 
 @Injectable()
 export class WhatsappApiService {
@@ -10,7 +13,11 @@ export class WhatsappApiService {
   private readonly phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID; // Example: "1234567890"
   private readonly apiUrl = `https://graph.facebook.com/v24.0/${this.phoneNumberId}/messages`;
 
-  constructor(private readonly http: HttpService) {}
+  constructor(
+    private readonly http: HttpService,
+    @InjectRepository(OnboardingUser)
+    private readonly userRepo: Repository<OnboardingUser>,
+  ) {}
 
   private headers() {
     return {
@@ -100,9 +107,7 @@ footer: {
   }
 }
 
-  /**
-   * 🟤 SEND TEMPLATE MESSAGE (e.g. OTP, Welcome)
-   */
+
   async sendTemplate(to: string, templateName: string, languageCode = 'en_US', components = []) {
     try {
       const payload = {
@@ -168,7 +173,40 @@ async sendOnboardingTemplate(to: string, name: string) {
   }
 }
 
-  
+async sendVirtualAccountDetails(phoneNumber: string) {
+  // 1. Find user
+  const user = await this.userRepo.findOne({
+    where: { phoneNumber },
+  });
+
+  if (!user) {
+    throw new BadRequestException('User not found');
+  }
+
+  if (!user.virtualAccount) {
+    throw new BadRequestException(
+      'User does not have a virtual account yet.',
+    );
+  }
+
+  // 2. Format message
+  const message = 
+    `💼 *Your Billy Virtual Account Details* \n\n` +
+    `• *Account Name:* ${user.virtualAccountName}\n` +
+    `• *Account Number:* ${user.virtualAccount}\n` +
+    `• *Customer ID:* ${user.accountCustomerId}\n` +
+    `• *Bank:* Rubies MFB (Powered by Billy) 🏦\n\n` +
+    `You can now receive transfers instantly. 🚀\n` +
+    `Need help? Type *help*.`
+
+  // 3. Send via WhatsApp
+  await this.sendText(phoneNumber, message);
+
+  return {
+    success: true,
+    message: 'Virtual account details sent to user.',
+  };
+}
 
   async sendTypingIndicator(to: string, messageId: string) {
   try {

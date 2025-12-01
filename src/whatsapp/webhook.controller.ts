@@ -2,6 +2,7 @@ import { Controller, Get, Query, ForbiddenException, Logger, Post, Body, Headers
 import { WhatsappWebhookService } from './webhook.service';
 import { WhatsappEventFilterService } from './filters/whatsapp-event-filter.service';
 import { WhatsappApiService } from './whatsapp-api.service';
+import { UserService } from '@/flows/on-boading/services/user.service';
 
 @Controller('whatsapp/webhook')
 export class WhatsappAPIWebhookController {
@@ -11,6 +12,7 @@ export class WhatsappAPIWebhookController {
   constructor(private readonly webhookService: WhatsappWebhookService,
      private readonly filter: WhatsappEventFilterService,
      private readonly whatsappApiService: WhatsappApiService,
+     private readonly userService: UserService,
   ) {}
 
   /**
@@ -62,13 +64,9 @@ async handleIncoming(@Body() body: any) {
       this.logger.log('🧾 Parsed flow data:', flowData);
 
       // PROCESS THE FLOW RESULT — SAVE USER, VERIFY PIN, etc.
-     // await this.flowService.handleCompletedFlow(from, flowData);
+      await this.userService.onboardUser(from, flowData);
 
-      // Send confirmation message
-      await this.whatsappApiService.sendText(
-        from,
-        `🎉 Registration successful, ${flowData.first_name}! Billy is ready to assist you.`
-      );
+     
 
       return 'OK';
     } catch (err) {
@@ -95,7 +93,7 @@ async handleIncoming(@Body() body: any) {
   await this.delay(1000);
 
   // Send onboarding template
-  await this.whatsappApiService.sendOnboardingTemplate(from, firstName);
+ // await this.whatsappApiService.sendOnboardingTemplate(from, firstName);
 
   // Continue your internal pipeline (optional)
   await this.webhookService.handleIncomingWebhook(body);
