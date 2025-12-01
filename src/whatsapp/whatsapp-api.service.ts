@@ -131,8 +131,10 @@ async sendOnboardingTemplate(to: string, firstName: string) {
       type: "template",
       template: {
         name: "billy_onboarding_start",
-        language: { code: "en" },
+        language: { code: "en_US" },
+
         components: [
+          // BODY COMPONENT 
           {
             type: "body",
             parameters: [
@@ -141,6 +143,14 @@ async sendOnboardingTemplate(to: string, firstName: string) {
                 text: firstName || "there"
               }
             ]
+          },
+
+          // BUTTON COMPONENT (CTA)
+          {
+            type: "button",
+            sub_type: "cta",
+            index: "0",
+            parameters: []
           }
         ]
       }
@@ -153,7 +163,9 @@ async sendOnboardingTemplate(to: string, firstName: string) {
     this.logger.log(`🚀 Onboarding template sent to ${to}`);
   } catch (error) {
     this.logger.error(
-      `❌ Template send failed: ${JSON.stringify(error.response?.data || error)}`
+      `❌ Template send failed: ${JSON.stringify(
+        error.response?.data || error,
+      )}`,
     );
   }
 }
