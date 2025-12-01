@@ -87,6 +87,7 @@ export class TransferStepsService {
     );
 
     if (!possibleBanks.length) {
+      await this.cache.delete(`tx:${phone}`);
       return this.whatsappApi.sendText(phone, `❗ I could not recognize that bank.\nTry again.`);
     }
 
