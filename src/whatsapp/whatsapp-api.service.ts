@@ -132,16 +132,19 @@ async sendOnboardingTemplate(to: string, name: string) {
       type: "template",
       template: {
         name: "billy_onboarding_start",
-        language: { code: "en" }, // ← CHANGE THIS to match your template language!
+        language: { code: "en" }, 
+        parameter_format: "positional",
+        category: "marketing",
         components: [
           {
             type: "body",
-            parameters: [
-              {
-                type: "text",
-                text: name || "there"
-              }
-            ]
+            example: {
+      body_text: [
+        [
+          name
+        ]
+      ]
+    }
           }
         ]
       }
