@@ -86,6 +86,8 @@ export class TransferStepsService {
       session.data.accountNumber
     );
 
+    console.log(`OIZA ${JSON.stringify(possibleBanks)}`)
+
     if (!possibleBanks.length) {
       await this.cache.delete(`tx:${phone}`);
       return this.whatsappApi.sendText(phone, `❗ I could not recognize that bank.\nTry again.`);
