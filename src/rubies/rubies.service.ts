@@ -42,10 +42,10 @@ export class RubiesService {
         this.http.post(url, payload, { headers: this.headers }),
       );
 
-      return response.data;
+      return response;
 
     } catch (error: any) {
-      const errData = error.response?.data;
+      const errData = error.response;
       const status = error.response?.status ?? 500;
 
       this.logger.error(
@@ -88,21 +88,24 @@ export class RubiesService {
   /** -----------------------------------------------------
    * 🔍 2. Name Enquiry
    * ----------------------------------------------------- */
-  async nameEnquiry(accountBankCode: string, accountNumber: string) {
-    const payload = { accountBankCode, accountNumber };
+  async nameEnquiry(bankCode: string, accountNumber: string) {
+  const payload = {
+    bankCode,
+    accountNumber,
+  };
 
-    this.logger.log(
-      `🔍 Performing name enquiry → ${accountBankCode} / ${accountNumber}`
-    );
+  const res = await this.post("nameenquiry", payload);
 
-    const data = await this.post('name-enquiry', payload);
+  // If the API returns the data inside `.data`, unwrap it
+  const data = res?.data ?? res;
 
-    return {
-      success: true,
-      message: 'Name enquiry completed',
-      data,
-    };
-  }
+  return {
+    responseCode: data?.responseCode,
+    responseMessage: data?.responseMessage,
+    accountName: data?.accountName,
+    accountNumber: data?.accountNumber,
+  };
+}
 
   /** -----------------------------------------------------
    * 💸 3. Fund Transfer
@@ -114,7 +117,7 @@ export class RubiesService {
 
     return {
       success: true,
-      message: data?.responseMessage || 'Transfer initiated',
+      message: 'Transfer initiated',
       data,
     };
   }
@@ -131,7 +134,7 @@ export class RubiesService {
 
     return {
       success: true,
-      message: data?.responseMessage || 'Transfer status retrieved',
+      message:  'Transfer status retrieved',
       data,
     };
   }

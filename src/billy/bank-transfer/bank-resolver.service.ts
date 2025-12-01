@@ -166,30 +166,25 @@ private detectBankFromText(message: string): {
     );
 
     for (const bank of banks) {
-      try {
-        const res = await this.rubies.nameEnquiry(bank.code, accountNumber);
+  try {
+    const data = await this.rubies.nameEnquiry(bank.code, accountNumber);
 
-        const data = res?.data || res;
-        if (data?.responseCode === '00') {
-          matches.push({
-            bankCode: bank.code,
-            bankName: bank.name,
-            normalizedName: bank.name.toLowerCase(),
-            source: 'enquiry',
-            confidenceScore: 0.95,
-            accountName: data.accountName,
-          });
-
-          // 🚀 Optional: break on first success to reduce latency
-          // break;
-        }
-      } catch (err) {
-        // Ignore failures and continue
-        this.logger.debug(
-          `Name-enquiry failed for ${bank.code}/${bank.name} → skipping`,
-        );
-      }
+    if (data?.responseCode === "00") {
+      matches.push({
+        bankCode: bank.code,
+        bankName: bank.name,
+        normalizedName: bank.name.toLowerCase(),
+        source: "enquiry",
+        confidenceScore: 0.95,
+        accountName: data.accountName,
+      });
     }
+  } catch (err) {
+    this.logger.debug(
+      `Name-enquiry failed for ${bank.code}/${bank.name} → skipping`,
+    );
+  }
+}
 
     return matches;
   }
@@ -220,7 +215,7 @@ private detectBankFromText(message: string): {
       accountNumber,
     );
 
-    const data = enquiry?.data ?? enquiry;
+    const data = enquiry;
 
     if (data?.responseCode !== '00') {
       throw new BadRequestException(
@@ -263,7 +258,7 @@ private detectBankFromText(message: string): {
     const hit = results[0];
 
     const enquiry = await this.rubies.nameEnquiry(hit.bankCode, accountNumber);
-    const data = enquiry?.data ?? enquiry;
+    const data =  enquiry;
 
     if (data?.responseCode === '00') {
       hit.accountName = data.accountName;
@@ -293,6 +288,7 @@ private detectBankFromText(message: string): {
     success: true,
     count: results.length,
     banks: results.sort((a, b) => b.confidenceScore - a.confidenceScore),
+
   };
 }
 }

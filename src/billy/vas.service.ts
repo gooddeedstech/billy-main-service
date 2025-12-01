@@ -197,14 +197,14 @@ export class VasService {
       tx.accountNumber,
     );
 
-    if (enquiry?.data?.responseCode !== '00') {
+    if (enquiry?.responseCode !== '00') {
       return await this.whatsapp.sendText(
         phone,
         `⚠️ Invalid account number for ${bank.bankName}.`
       );
     }
 
-    const accountName = enquiry.data.accountName;
+    const accountName = enquiry.accountName;
 
     await this.cache.set(`tx:${phone}`, {
       ...tx,
