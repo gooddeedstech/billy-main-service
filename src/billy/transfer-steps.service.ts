@@ -85,22 +85,22 @@ export class TransferStepsService {
       text,
       session.data.accountNumber
     );
-  this.logger.log(`🎯 possible banks → ${possibleBanks}`);
+  this.logger.log(`🎯 possible banks → ${JSON.stringify(possibleBanks)}`);
  
 
-    if (!possibleBanks.length) {
+    if (!possibleBanks) {
       await this.cache.delete(`tx:${phone}`);
       return this.whatsappApi.sendText(phone, `❗ I could not recognize that bank.\nTry again.`);
     }
 
-    if (possibleBanks.length > 1) {
-      return this.whatsappApi.sendText(
-        phone,
-        `❗ Multiple matches found.\nWhich one do you mean?\n${possibleBanks
-          .map((b) => `• ${b.bankName}`)
-          .join('\n')}`
-      );
-    }
+    // if (possibleBanks.length > 1) {
+    //   return this.whatsappApi.sendText(
+    //     phone,
+    //     `❗ Multiple matches found.\nWhich one do you mean?\n${possibleBanks
+    //       .map((b) => `• ${b.bankName}`)
+    //       .join('\n')}`
+    //   );
+    // }
 
     const bank = possibleBanks?.data?.bank;
     console.log(`MEYI ${JSON.stringify(bank)}`)

@@ -207,7 +207,7 @@ private detectBankFromText(message: string): {
   const { hits: textHits, exactHit } = this.detectBankFromText(bank);
 
   // 🔥 EXACT TEXT MATCH FOUND — trigger immediate name-enquiry
-  console.log(exactHit)
+
   if (exactHit) {
     this.logger.log(`🎯 EXACT bank match detected → ${exactHit.bankName}`);
 
