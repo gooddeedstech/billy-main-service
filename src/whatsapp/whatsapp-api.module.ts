@@ -21,6 +21,7 @@ import { CacheService } from '@/cache/cache.service';
 import { CacheModule } from '@nestjs/cache-manager';
 import { redisStore } from 'cache-manager-redis-yet';
 import { VasService } from '@/billy/vas.service';
+import { TransferStepsService } from '@/billy/transfer-steps.service';
 
 @Module({
   imports: [
@@ -39,7 +40,7 @@ import { VasService } from '@/billy/vas.service';
         UserTransaction,
         Tier,
       ]),],          
-  providers: [WhatsappApiService,WhatsappEventFilterService,TransferParserService,VasService,BankResolverService,TransferService, RubiesKYCService,RubiesVirtualAccountService, RubiesService,CacheService, UserService, WhatsappWebhookService, OnboardingFlowService],
+  providers: [WhatsappApiService,WhatsappEventFilterService,TransferStepsService,TransferParserService,VasService,BankResolverService,TransferService, RubiesKYCService,RubiesVirtualAccountService, RubiesService,CacheService, UserService, WhatsappWebhookService, OnboardingFlowService],
   controllers:[WhatsappAPIWebhookController],
   exports: [WhatsappApiService],  
 })
