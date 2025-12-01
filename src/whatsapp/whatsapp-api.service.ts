@@ -123,7 +123,8 @@ footer: {
     }
   }
 
-async sendOnboardingTemplate(to: string, firstName: string) {
+async sendOnboardingTemplate(to: string, name: string) {
+  console.log(`${to} - ${name}`)
   try {
     const payload = {
       messaging_product: "whatsapp",
@@ -131,25 +132,16 @@ async sendOnboardingTemplate(to: string, firstName: string) {
       type: "template",
       template: {
         name: "billy_onboarding_start",
-        language: { code: "en" },
-
+        language: { code: "en" }, // ← CHANGE THIS to match your template language!
         components: [
-          // BODY COMPONENT
           {
             type: "body",
             parameters: [
               {
                 type: "text",
-                text: firstName || "there"
+                text: name || "there"
               }
             ]
-          },
-
-          // QUICK REPLY BUTTON COMPONENT (NO PARAMETERS)
-          {
-            type: "button",
-            sub_type: "quick_reply",
-            index: "0"
           }
         ]
       }
@@ -162,9 +154,7 @@ async sendOnboardingTemplate(to: string, firstName: string) {
     this.logger.log(`🚀 Onboarding template sent to ${to}`);
   } catch (error) {
     this.logger.error(
-      `❌ Template send failed: ${JSON.stringify(
-        error.response?.data || error,
-      )}`,
+      `❌ Template send failed: ${JSON.stringify(error.response?.data || error)}`
     );
   }
 }
