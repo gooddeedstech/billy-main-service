@@ -32,42 +32,61 @@ export class RubiesService {
   /** -----------------------------------------------------
    * 🧰 Universal POST Handler (DRY)
    * ----------------------------------------------------- */
-  private async post(endpoint: string, payload: any) {
-    const url = `${this.baseUrl}/${endpoint}`;
+private async post(endpoint: string, payload: any) {
+  const url = `${this.baseUrl}/${endpoint}`;
+  this.logger.log(`📡 Rubies POST → ${url}`);
 
-    this.logger.log(`📡 Rubies POST → ${url}`);
+  try {
+    const axiosResponse = await firstValueFrom(
+      this.http.post(url, payload, { headers: this.headers })
+    );
 
-    try {
-      const response = await firstValueFrom(
-        this.http.post(url, payload, { headers: this.headers }),
-      );
+    // Axios returns: { status, data, headers, ... }
+    const data = axiosResponse.data;
 
-      return response;
-
-    } catch (error: any) {
-      const errData = error.response;
-      const status = error.response?.status ?? 500;
-
-      this.logger.error(
-        `❌ Rubies API Error @ ${endpoint} → ${JSON.stringify(errData)}`
-      );
-
-      if (status < 500) {
-        throw new BadRequestException({
-          success: false,
-          message: errData?.responseMessage || errData?.message || 'Rubies request failed',
-          raw: errData,
-        });
-      }
-
-      throw new InternalServerErrorException({
-        success: false,
-        message: 'Rubies service unavailable',
-        raw: errData,
-      });
-    }
+    // Ensure consistent returned structure
+    return {
+      success: true,
+      responseCode: data?.responseCode ?? null,
+      responseMessage: data?.responseMessage ?? null,
+      data,
+    };
   }
 
+  catch (error: any) {
+    const rawResponse = error?.response?.data || null;
+    const status = error?.response?.status || 500;
+
+    this.logger.error(`❌ Rubies API Error @ ${endpoint}`);
+
+    // Avoid circular JSON crash by serializing manually
+    this.logger.error('Object:', JSON.stringify({
+      status,
+      message: rawResponse?.responseMessage || rawResponse?.message || 'Rubies error',
+      raw: rawResponse,
+    }, null, 2));
+
+    // Known Rubies failure (4xx)
+    if (status < 500) {
+      throw new BadRequestException({
+        success: false,
+        status,
+        message: rawResponse?.responseMessage 
+              || rawResponse?.message 
+              || 'Rubies request failed',
+        raw: rawResponse,
+      });
+    }
+
+    // Server or network crash
+    throw new InternalServerErrorException({
+      success: false,
+      status,
+      message: 'Rubies service unavailable',
+      raw: rawResponse,
+    });
+  }
+}
   /** -----------------------------------------------------
    * 🏦 1. Get All Banks
    * ----------------------------------------------------- */
@@ -94,7 +113,8 @@ export class RubiesService {
     accountNumber,
   };
 
-  const res = await this.post("nameenquiry", payload);
+  const res = await this.post("name-enquiry", payload);
+
 
   // If the API returns the data inside `.data`, unwrap it
   const data = res?.data ?? res;

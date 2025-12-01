@@ -102,22 +102,14 @@ export class TransferStepsService {
       );
     }
 
-    const bank = possibleBanks.bank;
+    const bank = possibleBanks?.data?.bank;
     console.log(`MEYI ${JSON.stringify(bank)}`)
 
-    // 👉 Name Enquiry
-    const enquiry = await this.bankResolver.resolveBank(
-      bank.bankCode,
-      session.data.accountNumber
-    );
 
-    if (enquiry?.data?.responseCode !== '00') {
-      throw new BadRequestException('Invalid account number.');
-    }
 
     session.data.bankCode = bank.bankCode;
     session.data.bankName = bank.bankName;
-    session.data.accountName = enquiry.data.accountName;
+    session.data.accountName = bank.accountName;
     session.step = 'CONFIRM';
 
     await this.cache.set(`tx:${phone}`, session);
@@ -126,7 +118,7 @@ export class TransferStepsService {
       phone,
       `🧾 *Confirm Transfer*\n\n` +
         `Amount: *₦${session.data.amount.toLocaleString()}*\n` +
-        `Recipient: *${enquiry.data.accountName}*\n` +
+        `Recipient: *${bank.accountName}*\n` +
         `Bank: *${bank.bankName}*\n` +
         `Account Number: *${session.data.accountNumber}*\n\n` +
         `Enter your *4-digit PIN* to proceed.`
