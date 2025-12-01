@@ -25,14 +25,15 @@ import { TransferStepsService } from '@/billy/transfer-steps.service';
 
 @Module({
   imports: [
-    CacheModule.registerAsync({
-      useFactory: () => ({
-        store: redisStore as any,
-        host: process.env.REDIS_HOST || 'localhost',
-        port: Number(process.env.REDIS_PORT) || 6379,
-        ttl: 60 * 60, // 1 hour
-      }),
+   CacheModule.registerAsync({
+  isGlobal: true,
+  useFactory: async () => ({
+    store: await redisStore({
+      url: process.env.REDIS_URL,   // ✅ REQUIRED FOR RAILWAY
+      ttl: 60 * 5,                  // 5 mins
     }),
+  }),
+}),
     HttpModule,
   TypeOrmModule.forFeature([
         OnboardingUser,

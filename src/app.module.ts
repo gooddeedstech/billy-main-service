@@ -13,18 +13,15 @@ import { CacheModule } from '@nestjs/cache-manager';
 
 @Module({
   imports: [
-     CacheModule.registerAsync({
-      useFactory: async () => ({
-        store: await redisStore({
-          socket: {
-            host: process.env.REDIS_HOST || '127.0.0.1',
-            port: Number(process.env.REDIS_PORT) || 6379,
-          },
-          password: process.env.REDIS_PASSWORD || undefined,
-          ttl: 60 * 5, // default TTL 5 mins
-        }),
-      }),
+    CacheModule.registerAsync({
+  isGlobal: true,
+  useFactory: async () => ({
+    store: await redisStore({
+      url: process.env.REDIS_URL,   // ✅ REQUIRED FOR RAILWAY
+      ttl: 60 * 5,                  // 5 mins
     }),
+  }),
+}),
     ConfigModule.forRoot({
       isGlobal: true,        // VERY IMPORTANT
       envFilePath: '.env',   // (optional) ensure .env is loaded
