@@ -100,7 +100,8 @@ export class TransferStepsService {
       );
     }
 
-    const bank = possibleBanks[0];
+    const bank = possibleBanks.bank;
+    console.log(`MEYI ${JSON.stringify(bank)}`)
 
     // 👉 Name Enquiry
     const enquiry = await this.bankResolver.resolveBank(
