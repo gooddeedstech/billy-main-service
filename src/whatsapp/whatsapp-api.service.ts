@@ -128,23 +128,21 @@ async sendOnboardingTemplate(to: string, name: string) {
   try {
     const payload = {
       messaging_product: "whatsapp",
+      recipient_type: "individual",
       to,
       type: "template",
       template: {
         name: "billy_onboarding_start",
-        language: { code: "en" }, 
-        parameter_format: "positional",
-        category: "marketing",
+        language: { code: "en" },         
         components: [
           {
             type: "body",
-            example: {
-      body_text: [
-        [
-          name
-        ]
-      ]
-    }
+            parameters: [
+              {
+                type: "text",
+                text: name || "there"
+              }
+            ]
           }
         ]
       }
