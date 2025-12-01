@@ -103,14 +103,12 @@ export class TransferStepsService {
     // }
 
     const bank = possibleBanks?.bank;
-    console.log(`MEYI ${JSON.stringify(bank)}`)
-
-
+   
 
     session.data.bankCode = bank.bankCode;
     session.data.bankName = bank.bankName;
     session.data.accountName = bank.accountName;
-    session.step = 'CONFIRM';
+    session.step = 'CONFIRM_PIN';
 
     await this.cache.set(`tx:${phone}`, session);
 

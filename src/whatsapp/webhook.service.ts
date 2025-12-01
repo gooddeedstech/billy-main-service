@@ -52,7 +52,7 @@ export class WhatsappWebhookService {
         case 'ENTER_BANK':
           return await this.transferStepsService.handleBankName(from, text);
 
-        case 'ENTER_PIN':
+        case 'CONFIRM_PIN':
           return await this.transferStepsService.handlePinEntry(from, text);
       }
     }
