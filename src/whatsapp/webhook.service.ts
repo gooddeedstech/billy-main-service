@@ -116,36 +116,45 @@ export class WhatsappWebhookService {
    * ️⃣ F. MENU NUMBER HANDLING
    * ------------------------------------------------------- */
  // Handle Button Selections
-if (msg.type === 'interactive' && msg.interactive.type === 'button_reply') {
-  const optionId = msg.interactive.button_reply.id;
+// -------------------------------------------------------
+// 🧩 HANDLE MENU SELECTION (list_reply)
+// -------------------------------------------------------
 
-  this.logger.log(`🔘 User selected: ${optionId}`);
-  const messageId = msg.id
+if (msg?.type === 'interactive' && msg.interactive?.type === 'list_reply') {
+  const choice = msg.interactive.list_reply.id;
+  const from = msg.from;
+  const messageId = msg.id;
 
-  switch (optionId) {
-    case 'MENU_TRANSFER':
-      return await this.transferService.startTransfer(user.phoneNumber, messageId);
+  console.log(choice)
 
-    case 'MENU_AIRTIME':
-      return await this.vasService.startAirtimeFlow(user.phoneNumber, messageId);
+  this.logger.log(`📌 Menu option selected by ${from}: ${choice}`);
 
-    case 'MENU_BILLS':
-      return await this.vasService.startBillsFlow(user.phoneNumber, messageId);
+  switch (choice) {
+    case "MENU_TRANSFER":
+      return await this.vasService.startTransferFlow(from, messageId);
 
-    case 'MENU_CRYPTO':
-      return await this.vasService.startCryptoFlow(user.phoneNumber, messageId);
+    case "MENU_AIRTIME":
+      return await this.vasService.startAirtimeFlow(from, messageId);
 
-    case 'MENU_BALANCE':
-      return await this.vasService.getWalletBalance(user.phoneNumber, messageId);
+    case "MENU_BILLS":
+      return await this.vasService.startBillsFlow(from, messageId);
 
-    case 'MENU_SUPPORT':
-      return await this.whatsappApi.sendText(
-        from,
-        "🛟 *Support*\nHow can I assist you?"
-      );
+    case "MENU_CRYPTO":
+      return await this.vasService.startCryptoFlow(from, messageId);
+
+    case "MENU_BALANCE":
+      return await this.vasService.getWalletBalance(from, messageId);
+
+    case "MENU_HELP":
+      return await this.whatsappApi.sendHelpMenu(from, messageId);
 
     default:
-      return await this.whatsappApi.sendMenu(from, messageId); // fallback
+      // fallback
+      await this.whatsappApi.sendText(
+        from,
+        "❗ Sorry, I didn’t understand that option.\nPlease choose from the menu."
+      );
+      return await this.whatsappApi.sendMenu(from, msg.id);
   }
 }
 

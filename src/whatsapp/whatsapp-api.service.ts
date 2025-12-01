@@ -253,8 +253,8 @@ async sendHelpMenu(to: string, messageId: string) {
 async sendMenu(to: string, messageId: string) {
   try {
     // 1️⃣ Show typing indicator
-    await this.sendTypingIndicator(to, messageId);
-    await this.delay(800);
+    // await this.sendTypingIndicator(to, messageId);
+    // await this.delay(800);
 
     // 2️⃣ Construct WhatsApp List Message
     const payload = {
