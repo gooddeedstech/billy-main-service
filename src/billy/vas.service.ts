@@ -111,16 +111,21 @@ export class VasService {
   async startTransferFlow(phone: string, messageId: string) {
     await this.whatsapp.sendTypingIndicator(phone, messageId);
 
+     await this.cache.set(`tx:${phone}`, {
+    step: "ENTER_AMOUNT",
+    data: {}
+  }, 300); // 5 min TTL
+
     await this.whatsapp.sendText(
       phone,
       `💸 *Transfer Money*\n\nHow much do you want to transfer?`
     );
 
-    // Store the step
-    await this.cache.set(`tx:${phone}`, { step: 'ENTER_AMOUNT' });
+
 
     return 'ask_amount';
   }
+
 
   /** ------------------------------------------------------
    * 2️⃣ USER ENTERS AMOUNT

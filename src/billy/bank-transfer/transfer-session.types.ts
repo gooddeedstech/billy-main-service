@@ -3,11 +3,12 @@ export type TransferStep =
   | 'ENTER_ACCOUNT'
   | 'ENTER_BANK'
   | 'CONFIRM'
-  | 'ENTER_PIN';
+  | 'ENTER_PIN'
+  | 'ASK_SAVE_BENEFICIARY'
+  | 'DONE';
 
 export interface TransferSessionData {
   amount?: number;
-  rawAmount?: string;
   accountNumber?: string;
   bankName?: string;
   bankCode?: string;
@@ -17,4 +18,5 @@ export interface TransferSessionData {
 export interface TransferSession {
   step: TransferStep;
   data: TransferSessionData;
+  createdAt: number;
 }

@@ -1,11 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { WhatsappApiService } from './whatsapp-api.service';
 import { UserService } from '@/flows/on-boading/services/user.service';
-import { TransferService } from '@/billy/bank-transfer/transfer.service';
 import { CacheService } from '@/cache/cache.service';
 import { VasService } from '@/billy/vas.service';
 import { TransferStepsService } from '@/billy/transfer-steps.service';
-import { TransferSession } from '@/billy/bank-transfer/transfer-session.types';
 
 @Injectable()
 export class WhatsappWebhookService {
@@ -14,24 +12,17 @@ export class WhatsappWebhookService {
   constructor(
     private readonly whatsappApi: WhatsappApiService,
     private readonly userService: UserService,
-    private readonly transferService: TransferService,
     private readonly cache: CacheService,
+    private readonly vasService: VasService,
     private readonly transferStepsService: TransferStepsService,
   ) {}
 
-  /** ======================================================
-   * 📥 MAIN MESSAGE HANDLER
+  /* ======================================================
+   * 📥 MAIN WEBHOOK HANDLER
    * ====================================================== */
   async handleIncomingWebhook(body: any) {
-    this.logger.debug('📥 Incoming WhatsApp Webhook');
-
     const entry = body?.entry?.[0]?.changes?.[0]?.value;
-    if (!entry) return 'ignored';
-
-    const msg = entry.messages?.[0];
-    const flowResponse = entry.interactive?.flow_response;
-    const contact = entry.contacts?.[0];
-
+    const msg = entry?.messages?.[0];
     if (!msg) return 'ignored';
 
     const from = msg.from;
@@ -39,100 +30,85 @@ export class WhatsappWebhookService {
     const lower = text.toLowerCase();
     const messageId = msg.id;
 
-    // Extract name
-    const profileName = contact?.profile?.name ?? 'there';
-    const firstName = profileName.split(' ')[0];
+    this.logger.log(`📩 Incoming: ${from} → ${text}`);
 
-
-    // 1️⃣ Load transfer session at top
-const session = await this.cache.get<TransferSession>(`tx:${from}`);
-
-if (session) {
-  switch (session.step) {
-    case 'ENTER_AMOUNT':
-      return await this.transferStepsService.handleTransferAmount(from, text);
-    case 'ENTER_ACCOUNT':
-      return await this.transferStepsService.handleAccountNumber(from, text);
-    case 'ENTER_BANK':
-      return await this.transferStepsService.handleBankName(from, text);
-    case 'CONFIRM':
-      return await this.transferStepsService.handleTransferConfirmation(from, text);
-    case 'ENTER_PIN':
-      return await this.transferStepsService.handlePinEntry(from, text);
-  }
-}
-
-// 2️⃣ Beneficiary yes/no handler
-await this.transferStepsService.handleBeneficiaryDecision(from, text);
-
-    /** ======================================================
-     * 1️⃣ FLOW SUBMISSION RESPONSE (highest priority)
+    /* ======================================================
+     * 🔥 1. ACTIVE TRANSFER SESSION (Redis)
      * ====================================================== */
-    if (flowResponse) return this.handleFlowSubmission(from, flowResponse, messageId);
+    const session = await this.cache.get(`tx:${from}`);
 
+    if (session) {
+      this.logger.log(`🔥 Routing transfer step for ${from}: ${session.step}`);
 
+      switch (session.step) {
+        case 'ENTER_AMOUNT':
+          return await this.transferStepsService.handleTransferAmount(from, text);
 
-    /** ======================================================
-     * 3️⃣ INTERACTIVE MENU SELECTED
-     * ====================================================== */
-    // if (msg.type === 'interactive' && msg.interactive?.type === 'list_reply') {
-    //   return this.handleMenuSelection(from, msg.interactive.list_reply.id, messageId);
-    // }
+        case 'ENTER_ACCOUNT':
+          return await this.transferStepsService.handleAccountNumber(from, text);
 
-    /** ======================================================
-     * 4️⃣ EXPLICIT HELP / MENU COMMAND
-     * ====================================================== */
-    if (lower === 'help' || lower === 'menu') {
-      await this.typing(from, messageId);
-      return this.whatsappApi.sendMenu(from, messageId);
+        case 'ENTER_BANK':
+          return await this.transferStepsService.handleBankName(from, text);
+
+        case 'ENTER_PIN':
+          return await this.transferStepsService.handlePinEntry(from, text);
+      }
     }
 
-    /** ======================================================
-     * 5️⃣ CHECK USER (NEW OR EXISTING)
+    /* ======================================================
+     * 🔥 2. BENEFICIARY YES/NO
+     * ====================================================== */
+    const pendingBeneficiary = await this.cache.get(`beneficiary:${from}`);
+
+    if (pendingBeneficiary && ['yes', 'no'].includes(lower)) {
+      return await this.transferStepsService.handleBeneficiaryDecision(from, lower);
+    }
+
+    /* ======================================================
+     * 🔥 3. ONBOARDING FLOW SUBMISSION (Flow Reply)
+     * ====================================================== */
+    if (msg.type === 'interactive' && msg.interactive?.type === 'nfm_reply') {
+      const raw = msg.interactive.nfm_reply.response_json;
+      const flowData = JSON.parse(raw);
+
+      return await this.handleFlowSubmission(from, flowData, messageId);
+    }
+
+    /* ======================================================
+     * 🔥 4. HELP & MENU COMMANDS
+     * ====================================================== */
+    if (['help', 'menu'].includes(lower)) {
+      return await this.whatsappApi.sendMenu(from, messageId);
+    }
+
+    /* ======================================================
+     * 🔥 5. MENU LIST REPLY (buttons)
+     * ====================================================== */
+    if (msg.type === 'interactive' && msg.interactive?.type === 'list_reply') {
+      const choice = msg.interactive.list_reply.id;
+
+      return await this.handleMenuSelection(from, choice, messageId);
+    }
+
+    /* ======================================================
+     * 🔥 6. USER EXISTENCE CHECK
      * ====================================================== */
     const user = await this.userService.findByPhone(from);
-
-    // NEW USER → Onboarding template
     if (!user) {
-      await this.typing(from, messageId);
-      return this.whatsappApi.sendOnboardingTemplate(from, firstName);
+      return await this.whatsappApi.sendOnboardingTemplate(from, 'there');
     }
 
-    // /** ======================================================
-    //  * 6️⃣ NATURAL LANGUAGE TRANSFER ("transfer 5k to 0023…")
-    //  * ====================================================== */
-    // if (lower.startsWith('transfer') || lower.startsWith('send')) {
-    //   return this.handleNaturalTransfer(from, text);
-    // }
-
-    // /** ======================================================
-    //  * 7️⃣ PIN HANDLING
-    //  * ====================================================== */
-    // if (/^\d{4}$/.test(text)) {
-    //   return this.handlePinConfirmation(from, text);
-    // }
-
-    // /** ======================================================
-    //  * 8️⃣ SAVE BENEFICIARY
-    //  * ====================================================== */
-    // if (lower === 'yes') {
-    //   return this.handleSaveBeneficiary(from);
-    // }
-
-    /** ======================================================
-     * 9️⃣ FALLBACK → SHOW MENU
+    /* ======================================================
+     * 🔥 7. FALLBACK → MENU
      * ====================================================== */
-    await this.typing(from, messageId);
-    return this.whatsappApi.sendMenu(from, messageId);
+    return await this.whatsappApi.sendMenu(from, messageId);
   }
 
-  /* -------------------------------------------------------
-     🌟 FLOW HANDLER
-  -------------------------------------------------------- */
-  private async handleFlowSubmission(from: string, flow: any, messageId: string) {
-    const flowData = flow.data || {};
+  /* ======================================================
+   * 🌟 HANDLE SUBMITTED WHATSAPP FLOW (NFM)
+   * ====================================================== */
+  private async handleFlowSubmission(from: string, flowData: any, messageId: string) {
     this.logger.log(`📄 Flow submitted by ${from}`);
-    this.logger.debug(flowData);
 
     try {
       await this.userService.onboardUser(from, flowData);
@@ -140,117 +116,52 @@ await this.transferStepsService.handleBeneficiaryDecision(from, text);
       await this.typing(from, messageId);
       await this.whatsappApi.sendText(
         from,
-        `🎉 *Welcome to Billy!* Your account has been created successfully.`
+        `🎉 *Welcome to Billy!* Your account has been created successfully.`,
       );
 
       return 'flow_onboarding_completed';
-    } catch (err) {
-      await this.whatsappApi.sendText(from, `⚠️ Onboarding failed: ${err.message}`);
+    } catch (error) {
+      await this.whatsappApi.sendText(from, `⚠️ Onboarding failed: ${error.message}`);
       return 'flow_onboarding_error';
     }
   }
 
-  /* -------------------------------------------------------
-     🔄 TRANSFER SESSION ROUTER
-  -------------------------------------------------------- */
+  /* ======================================================
+   * 📌 HANDLE MENU OPTION
+   * ====================================================== */
+  private async handleMenuSelection(from: string, choice: string, messageId: string) {
+    this.logger.log(`📌 Menu option selected: ${from} → ${choice}`);
 
+    await this.typing(from, messageId);
 
-  /* -------------------------------------------------------
-     📌 MENU INTERACTION HANDLER
-  -------------------------------------------------------- */
-  // private async handleMenuSelection(from: string, choice: string, messageId: string) {
-  //   this.logger.log(`📌 Menu option selected by ${from}: ${choice}`);
+    switch (choice) {
+      case 'MENU_TRANSFER':
+        return await this.vasService.startTransferFlow(from, messageId);
 
-  //   await this.typing(from, messageId);
+      case 'MENU_AIRTIME':
+        return await this.vasService.startAirtimeFlow(from, messageId);
 
-  //   switch (choice) {
-  //     case 'MENU_TRANSFER':
-  //       return this.vasService.startTransferFlow(from, messageId);
+      case 'MENU_BILLS':
+        return await this.vasService.startBillsFlow(from, messageId);
 
-  //     case 'MENU_AIRTIME':
-  //       return this.vasService.startAirtimeFlow(from, messageId);
+      case 'MENU_CRYPTO':
+        return await this.vasService.startCryptoFlow(from, messageId);
 
-  //     case 'MENU_BILLS':
-  //       return this.vasService.startBillsFlow(from, messageId);
+      case 'MENU_BALANCE':
+        return await this.vasService.getWalletBalance(from, messageId);
 
-  //     case 'MENU_CRYPTO':
-  //       return this.vasService.startCryptoFlow(from, messageId);
+      case 'MENU_HELP':
+        return await this.whatsappApi.sendHelpMenu(from, messageId);
 
-  //     case 'MENU_BALANCE':
-  //       return this.vasService.getWalletBalance(from, messageId);
+      default:
+        await this.whatsappApi.sendText(from, `❗ Unrecognized option. Try again.`);
+        return await this.whatsappApi.sendMenu(from, messageId);
+    }
+  }
 
-  //     case 'MENU_HELP':
-  //       return this.whatsappApi.sendHelpMenu(from, messageId);
-
-  //     default:
-  //       await this.whatsappApi.sendText(from, `❗ Invalid option. Please select again.`);
-  //       return this.whatsappApi.sendMenu(from, messageId);
-  //   }
-  // }
-
-  // /* -------------------------------------------------------
-  //    💬 NATURAL LANGUAGE TRANSFER ("transfer 5000 to …")
-  // -------------------------------------------------------- */
-  // private async handleNaturalTransfer(from: string, text: string) {
-  //   const res = await this.transferService.startTransfer(from, text);
-
-  //   if (res.ask) return this.whatsappApi.sendText(from, res.ask);
-
-  //   if (res.confirm) {
-  //     const { amount, accountName, accountNumber, bankName } = res.confirm;
-
-  //     await this.whatsappApi.sendText(
-  //       from,
-  //       `🧾 *Transfer Confirmation*\n\n` +
-  //       `Send *₦${amount.toLocaleString()}* to:\n\n` +
-  //       `👤 *${accountName}*\n` +
-  //       `🏦 *${bankName}*\n` +
-  //       `🔢 *${accountNumber}*\n\n` +
-  //       `Enter your *4-digit PIN* to confirm.`
-  //     );
-
-  //     await this.cache.set(`pending_tx:${from}`, res.confirm);
-  //   }
-
-  //   return 'processing_transfer';
-  // }
-
-  /* -------------------------------------------------------
-     🔐 PIN ENTRY HANDLER
-  -------------------------------------------------------- */
-  // private async handlePinConfirmation(from: string, pin: string) {
-  //   const pending = await this.cache.get(`pending_tx:${from}`);
-  //   if (!pending) return;
-
-  //   await this.transferService.verifyPin(from, pin);
-  //   const tx = await this.transferService.executeTransfer(from);
-
-  //   await this.whatsappApi.sendText(
-  //     from,
-  //     `✅ *Transfer Successful!*\n₦${pending.amount.toLocaleString()} sent to *${pending.accountName}*.`
-  //   );
-
-  //   await this.whatsappApi.sendText(
-  //     from,
-  //     `💾 Would you like to *save this beneficiary*?\nReply *yes* or *no*.`
-  //   );
-
-  //   return;
-  // }
-
-  /* -------------------------------------------------------
-     💾 SAVE BENEFICIARY
-  -------------------------------------------------------- */
-  // private async handleSaveBeneficiary(from: string) {
-  //   const pending = await this.cache.get(`pending_tx:${from}`);
-  //   await this.userService.saveBeneficiary(from, pending);
-
-  //   return this.whatsappApi.sendText(from, `💾 Beneficiary saved successfully!`);
-  // }
-
-  /* -------------------------------------------------------
-     ⏳ Helper: Typing Simulation
-  -------------------------------------------------------- */
+  /* ======================================================
+   * ⏳ Typing Simulation
+   * ====================================================== */
   private async typing(to: string, messageId: string, delayMs = 900) {
     await this.whatsappApi.sendTypingIndicator(to, messageId);
     await this.delay(delayMs);
