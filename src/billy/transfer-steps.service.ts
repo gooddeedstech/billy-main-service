@@ -102,7 +102,7 @@ export class TransferStepsService {
     //   );
     // }
 
-    const bank = possibleBanks?.data?.bank;
+    const bank = possibleBanks?.bank;
     console.log(`MEYI ${JSON.stringify(bank)}`)
 
 
