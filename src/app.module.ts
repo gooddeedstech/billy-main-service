@@ -8,10 +8,23 @@ import { OnboardingUser } from './entities/users.entity';
 import { OnboardingFlowModule } from './flows/on-boading/onboarding-flow.module';
 import { WhatsappApiModule } from './whatsapp/whatsapp-api.module';
 import { RubiesVirtualAccountModule } from './rubies/rubies-virtual-account.module';
-
+import { redisStore } from 'cache-manager-redis-yet';
+import { CacheModule } from '@nestjs/cache-manager';
 
 @Module({
   imports: [
+     CacheModule.registerAsync({
+      useFactory: async () => ({
+        store: await redisStore({
+          socket: {
+            host: process.env.REDIS_HOST || '127.0.0.1',
+            port: Number(process.env.REDIS_PORT) || 6379,
+          },
+          password: process.env.REDIS_PASSWORD || undefined,
+          ttl: 60 * 5, // default TTL 5 mins
+        }),
+      }),
+    }),
     ConfigModule.forRoot({
       isGlobal: true,        // VERY IMPORTANT
       envFilePath: '.env',   // (optional) ensure .env is loaded

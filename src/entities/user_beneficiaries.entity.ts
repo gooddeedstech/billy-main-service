@@ -19,6 +19,11 @@ export class UserBeneficiary {
   })
   user!: OnboardingUser;
 
+   // The main beneficiary number (account number or phone number)
+  @Column()
+  name!: string;
+
+  // The main beneficiary number (account number or phone number)
   @Column()
   number!: string;
 
@@ -28,8 +33,15 @@ export class UserBeneficiary {
   })
   type!: BeneficiaryType;
 
+  // Store other details like bankCode, bankName, accountName
   @Column({ type: 'jsonb', nullable: true })
-  data?: any;
+  data?: {
+    bankCode?: string;
+    bankName?: string;
+    accountName?: string;
+    accountNumber?: string;
+    [key: string]: any;
+  };
 
   @CreateDateColumn()
   createdAt!: Date;

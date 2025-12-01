@@ -250,6 +250,50 @@ async sendHelpMenu(to: string) {
   }
 }
 
+async sendMenu(to: string, messageId?: string) {
+  try {
+    // Optional typing indicator  
+    if (messageId) {
+      await this.sendTypingIndicator(to, messageId);
+      await new Promise(res => setTimeout(res, 800));
+    }
+
+    const payload = {
+      messaging_product: "whatsapp",
+      to,
+      type: "interactive",
+      interactive: {
+        type: "button",
+        body: {
+          text:
+            "👇 *Welcome to Billy!*\n" +
+            "Choose an option to continue:"
+        },
+        action: {
+          buttons: [
+            { type: "reply", reply: { id: "MENU_TRANSFER", title: "💸 Transfer" } },
+            { type: "reply", reply: { id: "MENU_AIRTIME", title: "📱 Airtime/Data" } },
+            { type: "reply", reply: { id: "MENU_BILLS", title: "⚡ Bills" } },
+            { type: "reply", reply: { id: "MENU_CRYPTO", title: "💱 Crypto" } },
+            { type: "reply", reply: { id: "MENU_BALANCE", title: "💰 Check Balance" } },
+            { type: "reply", reply: { id: "MENU_SUPPORT", title: "🛟 Support" } }
+          ]
+        }
+      }
+    };
+
+    await firstValueFrom(
+      this.http.post(this.apiUrl, payload, { headers: this.headers() })
+    );
+
+    this.logger.log(`📤 Billy Menu sent to ${to}`);
+  } catch (err) {
+    this.logger.error(
+      `❌ Failed to send menu: ${JSON.stringify(err.response?.data || err)}`
+    );
+  }
+}
+
   async sendTypingIndicator(to: string, messageId: string) {
   try {
     const payload = {

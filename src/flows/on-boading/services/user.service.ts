@@ -4,12 +4,13 @@ import { Repository } from 'typeorm';
 
 import * as bcrypt from 'bcryptjs';
 import { OnboardingUser } from '@/entities/users.entity';
-import { TierLevel } from './enum/user.enums';
+import { BeneficiaryType, TierLevel } from './enum/user.enums';
 import { RubiesKYCService } from '@/rubies/rubie-kyc.service';
 import { OnboardingFlowDto } from '../dtos/on-boarding.dto';
 import { RubiesVirtualAccountService } from '@/rubies/rubies-virtual-account.service';
 import { Tier } from '@/entities/tier.entity';
 import { WhatsappApiService } from '@/whatsapp/whatsapp-api.service';
+import { UserBeneficiary } from '@/entities/user_beneficiaries.entity';
 
 @Injectable()
 export class UserService {
@@ -18,6 +19,9 @@ export class UserService {
     private readonly userRepo: Repository<OnboardingUser>,
      @InjectRepository(Tier)
     private readonly tierRepo: Repository<Tier>,
+    @InjectRepository(UserBeneficiary)
+    private readonly beneficiaryRepo: Repository<UserBeneficiary>,
+    
     private readonly rubiesKyc: RubiesKYCService,
     private readonly virtualAccountService: RubiesVirtualAccountService,
      private readonly whatsappApiService: WhatsappApiService,
@@ -201,5 +205,40 @@ async onboardUser(phoneNumber: string, dto: OnboardingFlowDto) {
 
   async findById(id: string) {
     return this.userRepo.findOne({ where: { id } });
+  }
+
+  async save(user: OnboardingUser) {
+  return await this.userRepo.save(user);
+}
+
+async saveBeneficiary(phone: string, details: any) {
+  const user = await this.findByPhone(phone);
+  if (!user) throw new NotFoundException('User not found');
+
+  const beneficiary = this.beneficiaryRepo.create({
+    user,
+    number: details.accountNumber,
+    name: details.accountName,
+    type: BeneficiaryType.BANK,  // e.g. BANK, depending on your enum
+    data: {
+      bankCode: details.bankCode,
+      bankName: details.bankName,
+      accountName: details.accountName,
+      accountNumber: details.accountNumber,
+    },
+  });
+
+  return await this.beneficiaryRepo.save(beneficiary);
+}
+
+ async update(id: string, payload: Partial<OnboardingUser>) {
+    const existing = await this.userRepo.findOne({ where: { id } });
+
+    if (!existing) {
+      throw new NotFoundException('User not found');
+    }
+
+    const updated = Object.assign(existing, payload);
+    return await this.userRepo.save(updated);
   }
 }

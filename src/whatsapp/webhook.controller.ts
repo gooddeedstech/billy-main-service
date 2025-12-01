@@ -37,11 +37,10 @@ export class WhatsappAPIWebhookController {
   }
 
 
-@Post()
+  @Post()
 @HttpCode(200)
 async handleIncoming(@Body() body: any) {
   this.logger.debug('📥 Incoming WhatsApp Webhook');
-  // console.log(JSON.stringify(body, null, 2)); // Debug body
 
   const entry = body?.entry?.[0];
   const changes = entry?.changes?.[0];
@@ -51,55 +50,104 @@ async handleIncoming(@Body() body: any) {
 
   const from = msg.from;
 
-  // -------------------------------------------------------
-  // 1️⃣ HANDLE FLOW SUBMISSION RESPONSE (nfm_reply)
-  // -------------------------------------------------------
+  /** -------------------------------------------------------
+   * 1️⃣ HANDLE NFM FLOW SUBMISSION (Meta Flow Response)
+   * ------------------------------------------------------ */
   if (msg.type === 'interactive' && msg.interactive?.type === 'nfm_reply') {
-    this.logger.log('📨 Flow submission received');
+    this.logger.log(`📨 Received NFM Flow Submission from ${from}`);
 
     try {
-      const rawJson = msg.interactive.nfm_reply.response_json;
-      const flowData = JSON.parse(rawJson);
+      const jsonString = msg.interactive.nfm_reply.response_json;
+      const flowData = JSON.parse(jsonString);
 
-      this.logger.log('🧾 Parsed flow data:', flowData);
+      this.logger.log(`🧾 Parsed Flow Data: ${JSON.stringify(flowData)}`);
 
-      // PROCESS THE FLOW RESULT — SAVE USER, VERIFY PIN, etc.
-      await this.userService.onboardUser(from, flowData);
+      // Send the result to your onboarding service
+      await this.userService.onboardUser(from,flowData);
 
-     
-
-      return 'OK';
-    } catch (err) {
-      this.logger.error('❌ Failed to parse Flow data', err);
-      return 'OK';
+      return 'flow_processed';
+    } catch (error) {
+      this.logger.error(`❌ Failed to process flow: ${error.message}`);
+      return 'flow_error';
     }
   }
 
-  // -------------------------------------------------------
-  // 2️⃣ NORMAL INCOMING TEXT MESSAGE
-  // -------------------------------------------------------
-
-  const messageId = msg.id;
-  const text = msg.text?.body;
-
-  // Extract WhatsApp profile name
-  const waName = changes?.value?.contacts?.[0]?.profile?.name || null;
-  const firstName = waName?.split(' ')?.[0] ?? 'there';
-
-  this.logger.log(`👤 Profile Name Detected: ${firstName}`);
-
-  // Show typing indicator
+   const messageId = msg.id;
   await this.whatsappApiService.sendTypingIndicator(from, messageId);
   await this.delay(1000);
 
-  // Send onboarding template
- // await this.whatsappApiService.sendOnboardingTemplate(from, firstName);
+  /** -------------------------------------------------------
+   * 2️⃣ NORMAL MESSAGE → Forward to Main Handler
+   * ------------------------------------------------------ */
 
-  // Continue your internal pipeline (optional)
-  await this.webhookService.handleIncomingWebhook(body);
-
-  return 'OK';
+  this.logger.debug('➡ Forwarding to internal webhook logic...');
+  return await this.webhookService.handleIncomingWebhook(body);
 }
+
+
+// @Post()
+// @HttpCode(200)
+// async handleIncoming(@Body() body: any) {
+//   this.logger.debug('📥 Incoming WhatsApp Webhook');
+//   // console.log(JSON.stringify(body, null, 2)); // Debug body
+
+//   const entry = body?.entry?.[0];
+//   const changes = entry?.changes?.[0];
+//   const msg = changes?.value?.messages?.[0];
+
+//   if (!msg) return 'OK';
+
+//   const from = msg.from;
+
+//   // -------------------------------------------------------
+//   // 1️⃣ HANDLE FLOW SUBMISSION RESPONSE (nfm_reply)
+//   // -------------------------------------------------------
+//   if (msg.type === 'interactive' && msg.interactive?.type === 'nfm_reply') {
+//     this.logger.log('📨 Flow submission received');
+
+//     try {
+//       const rawJson = msg.interactive.nfm_reply.response_json;
+//       const flowData = JSON.parse(rawJson);
+
+//       this.logger.log('🧾 Parsed flow data:', flowData);
+
+//       // PROCESS THE FLOW RESULT — SAVE USER, VERIFY PIN, etc.
+//       await this.userService.onboardUser(from, flowData);
+
+     
+
+//       return 'OK';
+//     } catch (err) {
+//       this.logger.error('❌ Failed to parse Flow data', err);
+//       return 'OK';
+//     }
+//   }
+
+//   // -------------------------------------------------------
+//   // 2️⃣ NORMAL INCOMING TEXT MESSAGE
+//   // -------------------------------------------------------
+
+//   const messageId = msg.id;
+//   const text = msg.text?.body;
+
+//   // Extract WhatsApp profile name
+//   const waName = changes?.value?.contacts?.[0]?.profile?.name || null;
+//   const firstName = waName?.split(' ')?.[0] ?? 'there';
+
+//   this.logger.log(`👤 Profile Name Detected: ${firstName}`);
+
+//   // Show typing indicator
+//   await this.whatsappApiService.sendTypingIndicator(from, messageId);
+//   await this.delay(1000);
+
+//   // Send onboarding template
+//  // await this.whatsappApiService.sendOnboardingTemplate(from, firstName);
+
+//   // Continue your internal pipeline (optional)
+//   await this.webhookService.handleIncomingWebhook(body);
+
+//   return 'OK';
+// }
 
 // Helper
 private delay(ms: number) {
