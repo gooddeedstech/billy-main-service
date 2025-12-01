@@ -164,17 +164,20 @@ async onboardUser(phoneNumber: string, dto: OnboardingFlowDto) {
    // Send confirmation message
 
    const va = virtualAccount?.data;
-      await this.whatsappApiService.sendText(
+     await this.whatsappApiService.sendText(
   phoneNumber,
   `🎉 *Registration Successful, ${first_name}!* \n\n` +
-  `Your Billy virtual account is now active. 🎯\n\n` +
-  `🏦 *Account Details*\n` +
-  `• *Account Number:* ${va.accountNumber}\n` +
-  `• *Account Name:* ${va.accountName}\n` +
-  `• *Bank:* Rubies MFB (Powered by Billy)\n\n` +
-  `You can now receive transfers instantly. 🚀\n\n` +
-  `Need anything? Just type *help* anytime!`
+  `Your Billy account has been created successfully and you're all set to begin! 🚀\n\n` +
+  `You can now enjoy all Billy services, including:\n` +
+  `• 💸 Instant airtime & data purchases\n` +
+  `• ⚡ Electricity & TV subscriptions\n` +
+  `• 🏦 Secure bank transfers\n` +
+  `• 💳 Crypto → Naira conversions\n` +
+  `• 🤖 24/7 AI-powered financial assistance\n\n` +
+  `If you ever need help, just type *help*. Billy is always here for you. ✨`
 );
+
+  await this.whatsappApiService.sendVirtualAccountDetails(phoneNumber)
 
   return 'Ok'
 }

@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { WhatsappApiService } from './whatsapp-api.service';
 import { OnboardingFlowService } from '@/flows/on-boading/onboarding-flow.service';
+import { UserService } from '@/flows/on-boading/services/user.service';
 
 @Injectable()
 export class WhatsappWebhookService {
@@ -21,6 +22,7 @@ export class WhatsappWebhookService {
   constructor(
     private readonly whatsappApi: WhatsappApiService,
     private readonly onboardingFlow: OnboardingFlowService,
+    private readonly userService: UserService,
     // private readonly billyAi: BillyAiService,
   ) {}
 
@@ -34,8 +36,12 @@ export class WhatsappWebhookService {
 
     this.logger.log(`💬 Incoming from ${from}: ${text}`);
 
+    if (text?.toLowerCase() === 'help') {
+    return await this.whatsappApi.sendHelpMenu(from);
+}
+
     // 👉 Replace this with your real DB lookup
-    const user = await this.findUserByPhone(from);
+    const user = await this.userService.findByPhone(from);
 
     const isOnboardingKeyword = this.onboardingTriggers.includes(text);
 
@@ -87,10 +93,4 @@ To begin, just reply with *hi* or *start*.`
     return 'ai_message_sent';
   }
 
-  /**
-   * Temporary mock — replace with real DB lookup
-   */
-  private async findUserByPhone(phone: string) {
-    return null; // ← treat everyone as new for now
-  }
 }

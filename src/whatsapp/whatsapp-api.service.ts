@@ -190,14 +190,14 @@ async sendVirtualAccountDetails(phoneNumber: string) {
   }
 
   // 2. Format message
-  const message = 
-    `💼 *Your Billy Virtual Account Details* \n\n` +
-    `• *Account Name:* ${user.virtualAccountName}\n` +
-    `• *Account Number:* ${user.virtualAccount}\n` +
-    `• *Customer ID:* ${user.accountCustomerId}\n` +
-    `• *Bank:* Rubies MFB (Powered by Billy) 🏦\n\n` +
-    `You can now receive transfers instantly. 🚀\n` +
-    `Need help? Type *help*.`
+const message =
+  `💼 *Fund Your Billy Wallet*\n\n` +
+  `To add money to your Billy wallet, simply make a transfer to your personal Billy bank account below:\n\n` +
+  `👤 *Account Name:* ${user.virtualAccountName}\n` +
+  `🔢 *Account Number:* ${user.virtualAccount}\n` +
+  `🏦 *Bank:* Rubies MFB\n\n` +
+  `💳 Your wallet will be funded automatically once the transfer is received — no extra steps needed.\n\n` +
+  `🚀 Ready when you are! Type *help* if you need assistance.`;
 
   // 3. Send via WhatsApp
   await this.sendText(phoneNumber, message);
@@ -206,6 +206,48 @@ async sendVirtualAccountDetails(phoneNumber: string) {
     success: true,
     message: 'Virtual account details sent to user.',
   };
+}
+
+async sendHelpMenu(to: string) {
+  try {
+    const message =
+      `🤖 *Billy Help Center*\n` +
+      `I'm here to assist you 24/7! Below are the things I can help you with:\n\n` +
+
+      `💸 *Airtime & Data*\n` +
+      `• Buy airtime\n` +
+      `• Buy mobile data\n\n` +
+
+      `⚡ *Bills & Utilities*\n` +
+      `• Pay electricity bills\n` +
+      `• Recharge prepaid meters\n` +
+      `• Subscribe to DSTV / GOTV\n\n` +
+
+      `🏦 *Banking Services*\n` +
+      `• Transfer money to any bank\n` +
+      `• Check wallet balance\n` +
+      `• View transaction history\n\n` +
+
+      `💳 *Crypto Services*\n` +
+      `• Convert Crypto → Naira\n\n` +
+
+      `👤 *Account & Security*\n` +
+      `• Change PIN\n` +
+      `• Update account details\n\n` +
+
+      `If you’d like to get started, simply type what you want.\n` +
+      `For example:\n` +
+      `• *Buy airtime 1k* \n` +
+      `• *Transfer 50k to 0123456789 GTBank*\n` +
+      `• *Pay electricity 3k*\n\n` +
+
+      `I'm ready when you are! 🚀`;
+
+    await this.sendText(to, message);
+
+  } catch (error) {
+    this.logger.error(`❌ Failed to send help menu: ${JSON.stringify(error.response?.data || error)}`);
+  }
 }
 
   async sendTypingIndicator(to: string, messageId: string) {
