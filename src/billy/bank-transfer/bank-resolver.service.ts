@@ -203,17 +203,13 @@ private detectBankFromText(message: string): {
    *  2. Account prefix-based detection (BIN-style)
    *  3. Rubies bank-list + name-enquiry brute force
    */
- async resolveBank(
-  message: string,
-  accountNumber: string,
-  amount?: string,
-): Promise<any> {
-  this.logger.log(`🏦 Resolving bank for ${amount}`);
+ async resolveBank(bank, accountNumber): Promise<any> {
+  this.logger.log(`🏦 Resolving bank for ${bank}`);
 
   // -----------------------------------------------
   // 1️⃣ TEXT MATCH
   // -----------------------------------------------
-  const { hits: textHits, exactHit } = this.detectBankFromText(message);
+  const { hits: textHits, exactHit } = this.detectBankFromText(bank);
 
   // 🔥 EXACT TEXT MATCH FOUND — trigger immediate name-enquiry
   if (exactHit) {
@@ -241,8 +237,7 @@ private detectBankFromText(message: string): {
         bankName: exactHit.bankName,
         accountName: data.accountName,
       },
-      accountNumber,
-      amount: amount ?? null,
+      accountNumber
     };
   }
 
@@ -278,8 +273,7 @@ private detectBankFromText(message: string): {
       return {
         success: true,
         message: 'Verified via name-enquiry',
-        bank: hit,
-        amount,
+        bank: hit
       };
     }
   }
@@ -299,7 +293,6 @@ private detectBankFromText(message: string): {
     success: true,
     count: results.length,
     banks: results.sort((a, b) => b.confidenceScore - a.confidenceScore),
-    amount,
   };
 }
 }

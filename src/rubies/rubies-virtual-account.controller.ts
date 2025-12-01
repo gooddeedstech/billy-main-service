@@ -45,7 +45,7 @@ export class RubiesVirtualAccountController {
   ): Promise<{ success: boolean; count: number; banks: ResolveBankDto[] }> {
     const { message, accountNumber, amount } = dto;
 
-    const result = await this.resolver.resolveBank(message, accountNumber, amount);
+    const result = await this.resolver.resolveBank(message, accountNumber);
 
     if (!result || result.length === 0) {
       throw new BadRequestException({
