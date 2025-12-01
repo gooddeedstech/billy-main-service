@@ -134,7 +134,7 @@ async sendOnboardingTemplate(to: string, firstName: string) {
         language: { code: "en_US" },
 
         components: [
-          // BODY COMPONENT 
+          // BODY COMPONENT
           {
             type: "body",
             parameters: [
@@ -145,12 +145,11 @@ async sendOnboardingTemplate(to: string, firstName: string) {
             ]
           },
 
-          // BUTTON COMPONENT (CTA)
+          // QUICK REPLY BUTTON COMPONENT (NO PARAMETERS)
           {
             type: "button",
-            sub_type: "cta",
-            index: "0",
-            parameters: []
+            sub_type: "quick_reply",
+            index: "0"
           }
         ]
       }
