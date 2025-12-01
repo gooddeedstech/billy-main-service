@@ -105,59 +105,234 @@ export class VasService {
   /*                         3. TRANSFER START FLOW                              */
   /* -------------------------------------------------------------------------- */
 
-  async startTransferFlow(user: any, msg: any) {
-    const phone = user.phoneNumber;
-    const raw = msg.text?.body || '';
-    const parsed = this.parser.parse(raw);
+  /** ------------------------------------------------------
+   * 1️⃣ USER SELECTS TRANSFER FROM MENU
+   * ------------------------------------------------------ */
+  async startTransferFlow(phone: string, messageId: string) {
+    await this.whatsapp.sendTypingIndicator(phone, messageId);
 
-    if (!parsed.amount || !parsed.accountNumber) {
+    await this.whatsapp.sendText(
+      phone,
+      `💸 *Transfer Money*\n\nHow much do you want to transfer?`
+    );
+
+    // Store the step
+    await this.cache.set(`tx:${phone}`, { step: 'ENTER_AMOUNT' });
+
+    return 'ask_amount';
+  }
+
+  /** ------------------------------------------------------
+   * 2️⃣ USER ENTERS AMOUNT
+   * ------------------------------------------------------ */
+  async handleTransferAmount(phone: string, amount: string) {
+    if (isNaN(Number(amount)) || Number(amount) < 100) {
       return await this.whatsapp.sendText(
         phone,
-        `❗ Please use:\n*Transfer 5000 to 0022334455 GTBank*`
+        `❗ Invalid amount. Please enter a valid number above ₦100.`
       );
     }
 
-    const banks = await this.bankResolver.resolveBank(raw, parsed.accountNumber);
+    await this.cache.set(`tx:${phone}`, {
+      step: 'ENTER_ACCOUNT',
+      amount: Number(amount),
+    });
 
-    if (!banks.length) {
-      return await this.whatsapp.sendText(phone, `❗ I couldn't detect the bank. Please specify it.`);
-    }
+    return await this.whatsapp.sendText(
+      phone,
+      `👌 Great! Now enter the *account number*.`
+    );
+  }
 
-    if (banks.length > 1) {
+  /** ------------------------------------------------------
+   * 3️⃣ USER ENTERS ACCOUNT NUMBER
+   * ------------------------------------------------------ */
+  async handleAccountNumber(phone: string, accountNumber: string) {
+    if (!/^\d{10}$/.test(accountNumber)) {
       return await this.whatsapp.sendText(
         phone,
-        `❗ Multiple banks detected: ${banks.map((b) => b.bankName).join(', ')}`,
+        `❗ Account number must be *10 digits*. Try again.`
+      );
+    }
+
+    const tx = await this.cache.get(`tx:${phone}`);
+
+    await this.cache.set(`tx:${phone}`, {
+      ...tx,
+      step: 'ENTER_BANK',
+      accountNumber,
+    });
+
+    return await this.whatsapp.sendText(
+      phone,
+      `🏦 Please enter the *bank name*.\nExample: GTBank, Access, Zenith`
+    );
+  }
+
+  /** ------------------------------------------------------
+   * 4️⃣ USER ENTERS BANK → DO NAME ENQUIRY
+   * ------------------------------------------------------ */
+  async handleBankName(phone: string, bankName: string) {
+    const tx = await this.cache.get(`tx:${phone}`);
+    if (!tx) return;
+
+    const banks = await this.bankResolver.resolveBank(bankName, tx.accountNumber);
+
+    if (!banks?.length) {
+      return await this.whatsapp.sendText(
+        phone,
+        `❗ Bank not found. Please enter a correct bank name.`
       );
     }
 
     const bank = banks[0];
 
-    const enquiry = await this.rubies.nameEnquiry(bank.bankCode, parsed.accountNumber);
+    const enquiry = await this.rubies.nameEnquiry(
+      bank.bankCode,
+      tx.accountNumber,
+    );
 
     if (enquiry?.data?.responseCode !== '00') {
-      throw new BadRequestException('Invalid account number.');
+      return await this.whatsapp.sendText(
+        phone,
+        `⚠️ Invalid account number for ${bank.bankName}.`
+      );
     }
 
-    const info = {
-      amount: parsed.amount,
-      accountNumber: parsed.accountNumber,
+    const accountName = enquiry.data.accountName;
+
+    await this.cache.set(`tx:${phone}`, {
+      ...tx,
+      step: 'CONFIRM',
       bankCode: bank.bankCode,
       bankName: bank.bankName,
-      accountName: enquiry.data.accountName,
-    };
-
-    await this.cache.set(`pending_transfer:${phone}`, info, 180);
+      accountName,
+    });
 
     return await this.whatsapp.sendText(
       phone,
-      `💰 Confirm Transfer\n\n` +
-        `• *Amount:* ₦${info.amount.toLocaleString()}\n` +
-        `• *Account:* ${info.accountNumber}\n` +
-        `• *Bank:* ${info.bankName}\n` +
-        `• *Name:* ${info.accountName}\n\n` +
-        `Enter your *4-digit PIN* to confirm.`
+      `🔍 *Confirm Transfer*\n\n` +
+        `• Amount: ₦${tx.amount}\n` +
+        `• Bank: ${bank.bankName}\n` +
+        `• Account Number: ${tx.accountNumber}\n` +
+        `• Account Name: ${accountName}\n\n` +
+        `Type *yes* to continue or *no* to cancel.`
     );
   }
+
+  /** ------------------------------------------------------
+   * 5️⃣ USER CONFIRMS → ASK FOR PIN
+   * ------------------------------------------------------ */
+  async handleTransferConfirmation(phone: string, text: string) {
+    const lower = text.toLowerCase();
+
+    if (lower !== 'yes') {
+      await this.cache.delete(`tx:${phone}`);
+      return await this.whatsapp.sendText(phone, `❌ Transfer cancelled.`);
+    }
+
+    const tx = await this.cache.get(`tx:${phone}`);
+
+    await this.cache.set(`tx:${phone}`, { ...tx, step: 'ENTER_PIN' });
+
+    return await this.whatsapp.sendText(
+      phone,
+      `🔐 Enter your *4-digit transaction PIN* to complete this transfer.`
+    );
+  }
+
+  /** ------------------------------------------------------
+   * 6️⃣ USER ENTERS PIN → EXECUTE TRANSFER
+   * ------------------------------------------------------ */
+  async handlePinEntry(phone: string, pin: string) {
+    const user = await this.userService.findByPhone(phone);
+
+    const tx = await this.cache.get(`tx:${phone}`);
+
+    const validPin = await this.userService.validatePin(phone, pin);
+
+    if (!validPin) {
+      return await this.whatsapp.sendText(phone, `❌ Incorrect PIN.`);
+    }
+
+    // Execute Rubies transfer
+    const result = await this.rubies.fundTransfer({
+      amount: tx.amount,
+      creditAccountNumber: tx.accountNumber,
+      creditAccountName: tx.accountName,
+      bankCode: tx.bankCode,
+      bankName: tx.bankName,
+      narration: `Billy Transfer From: ${user.firstName} ${user.lastName}`,
+      debitAccountNumber: user.virtualAccount,
+      reference: `tx-${Date.now()}`,
+      sessionId: `${phone}-${Date.now()}`,
+    });
+
+    await this.cache.delete(`tx:${phone}`);
+
+    return await this.whatsapp.sendText(
+      phone,
+      `✅ *Transfer Successful!*\n\n` +
+        `₦${tx.amount} sent to ${tx.accountName} (${tx.accountNumber})\n` +
+        `${tx.bankName}.`
+    );
+  }
+
+
+
+  // async startTransferFlow(user: any, msg: any) {
+  //   const phone = user.phoneNumber;
+  //   const raw = msg.text?.body || '';
+  //   const parsed = this.parser.parse(raw);
+
+  //   if (!parsed.amount || !parsed.accountNumber) {
+  //     return await this.whatsapp.sendText(
+  //       phone,
+  //       `❗ Please use:\n*Transfer 5000 to 0022334455 GTBank*`
+  //     );
+  //   }
+
+  //   const banks = await this.bankResolver.resolveBank(raw, parsed.accountNumber);
+
+  //   if (!banks.length) {
+  //     return await this.whatsapp.sendText(phone, `❗ I couldn't detect the bank. Please specify it.`);
+  //   }
+
+  //   if (banks.length > 1) {
+  //     return await this.whatsapp.sendText(
+  //       phone,
+  //       `❗ Multiple banks detected: ${banks.map((b) => b.bankName).join(', ')}`,
+  //     );
+  //   }
+
+  //   const bank = banks[0];
+
+  //   const enquiry = await this.rubies.nameEnquiry(bank.bankCode, parsed.accountNumber);
+
+  //   if (enquiry?.data?.responseCode !== '00') {
+  //     throw new BadRequestException('Invalid account number.');
+  //   }
+
+  //   const info = {
+  //     amount: parsed.amount,
+  //     accountNumber: parsed.accountNumber,
+  //     bankCode: bank.bankCode,
+  //     bankName: bank.bankName,
+  //     accountName: enquiry.data.accountName,
+  //   };
+
+  //   await this.cache.set(`pending_transfer:${phone}`, info, 180);
+
+  //   return await this.whatsapp.sendText(
+  //     phone,
+  //     `💰 Confirm Transfer\n\n` +
+  //       `• *Amount:* ₦${info.amount.toLocaleString()}\n` +
+  //       `• *Account:* ${info.accountNumber}\n` +
+  //       `• *Bank:* ${info.bankName}\n` +
+  //       `• *Name:* ${info.accountName}\n\n` +
+  //       `Enter your *4-digit PIN* to confirm.`
+  //   );
+  // }
 
   /* -------------------------------------------------------------------------- */
   /*                         4. AIRTIME PURCHASE FLOW                            */

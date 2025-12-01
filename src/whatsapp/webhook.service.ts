@@ -49,6 +49,27 @@ export class WhatsappWebhookService {
   const lower = text.toLowerCase();
   const messageId = msg.id;
 
+ const session = await this.cache.get(`tx:${from}`);
+
+if (session) {
+  switch (session.step) {
+    case 'ENTER_AMOUNT':
+      return await this.vasService.handleTransferAmount(from, text);
+
+    case 'ENTER_ACCOUNT':
+      return await this.vasService.handleAccountNumber(from, text);
+
+    case 'ENTER_BANK':
+      return await this.vasService.handleBankName(from, text);
+
+    case 'CONFIRM':
+      return await this.vasService.handleTransferConfirmation(from, text);
+
+    case 'ENTER_PIN':
+      return await this.vasService.handlePinEntry(from, text);
+  }
+}
+
   /** -------------------------------------------------------
    * 🧩 A. FLOW SUBMISSION HANDLING
    * ------------------------------------------------------- */
@@ -128,8 +149,11 @@ if (msg?.type === 'interactive' && msg.interactive?.type === 'list_reply') {
   console.log(choice)
 
   this.logger.log(`📌 Menu option selected by ${from}: ${choice}`);
+   await this.whatsappApi.sendTypingIndicator(from, messageId);
+      await this.delay(900);
 
   switch (choice) {
+    
     case "MENU_TRANSFER":
       return await this.vasService.startTransferFlow(from, messageId);
 
