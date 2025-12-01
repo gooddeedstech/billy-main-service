@@ -31,11 +31,13 @@ export class WhatsappWebhookService {
     const messageId = msg.id;
 
     this.logger.log(`📩 Incoming: ${from} → ${text}`);
+     
 
     /* ======================================================
      * 🔥 1. ACTIVE TRANSFER SESSION (Redis)
      * ====================================================== */
     const session = await this.cache.get(`tx:${from}`);
+    this.logger.log(`🔥 Session ${session}`);
 
     if (session) {
       this.logger.log(`🔥 Routing transfer step for ${from}: ${session.step}`);
@@ -101,7 +103,14 @@ export class WhatsappWebhookService {
     /* ======================================================
      * 🔥 7. FALLBACK → MENU
      * ====================================================== */
-    return await this.whatsappApi.sendMenu(from, messageId);
+    // if no session: THEN show menu.
+if (!session) {
+  return await this.whatsappApi.sendMenu(from, messageId);
+}
+
+// If session exists: NEVER show menu
+return 'session_active';
+   
   }
 
   /* ======================================================

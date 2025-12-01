@@ -1,277 +1,198 @@
 import { Injectable, BadRequestException, Logger } from '@nestjs/common';
-import { WhatsappApiService } from '@/whatsapp/whatsapp-api.service';
 import { CacheService } from '@/cache/cache.service';
-import { BankResolverService } from '@/billy/bank-transfer/bank-resolver.service';
-import { RubiesService } from '@/rubies/rubies.service';
+import { WhatsappApiService } from '@/whatsapp/whatsapp-api.service';
+import { UserService } from '@/flows/on-boading/services/user.service';
 import { TransferService } from '@/billy/bank-transfer/transfer.service';
-import { TransferSession, TransferSessionData } from './bank-transfer/transfer-session.types';
+import { BankResolverService } from './bank-transfer/bank-resolver.service';
+
 
 @Injectable()
 export class TransferStepsService {
   private readonly logger = new Logger(TransferStepsService.name);
 
   constructor(
-    private readonly whatsappApi: WhatsappApiService,
     private readonly cache: CacheService,
-    private readonly bankResolver: BankResolverService,
-    private readonly rubies: RubiesService,
+    private readonly whatsappApi: WhatsappApiService,
+    private readonly userService: UserService,
     private readonly transferService: TransferService,
+    private readonly bankResolver: BankResolverService,
   ) {}
 
-  private sessionKey(phone: string) {
-    return `tx:${phone}`;
-  }
+  /*---------------------------------------------------------
+   🔥 STEP 1 — Enter Amount
+  ---------------------------------------------------------*/
+  async handleTransferAmount(phone: string, text: string) {
+    const amount = this.parseAmount(text);
 
-  private async getSession(phone: string): Promise<TransferSession | null> {
-    return (await this.cache.get(this.sessionKey(phone))) as TransferSession;
-  }
-
-  private async saveSession(
-    phone: string,
-    session: TransferSession,
-    ttlSeconds = 15 * 60,
-  ) {
-    await this.cache.set(this.sessionKey(phone), session, ttlSeconds);
-  }
-
-  private async clearSession(phone: string) {
-    await this.cache.delete(this.sessionKey(phone));
-  }
-
-  private delay(ms: number) {
-    return new Promise((res) => setTimeout(res, ms));
-  }
-
-  // ---------------------------------------------------
-  // 1️⃣ START FLOW WHEN MENU_TRANSFER IS SELECTED
-  // ---------------------------------------------------
-  async startTransferFlow(from: string, messageId: string) {
-    const session: TransferSession = {
-      step: 'ENTER_AMOUNT',
-      data: {},
-      createdAt: Date.now(),
-    };
-
-    await this.saveSession(from, session);
-
-    await this.whatsappApi.sendTypingIndicator(from, messageId);
-    await this.delay(600);
-
-    await this.whatsappApi.sendText(
-      from,
-      `💸 *Transfer Money*\n\nHow much do you want to transfer?`,
-    );
-
-    return 'transfer_amount_requested';
-  }
-
-  // ---------------------------------------------------
-  // 2️⃣ HANDLE AMOUNT
-  // ---------------------------------------------------
-  async handleTransferAmount(from: string, raw: string) {
-    const session = await this.getSession(from);
-    if (!session || session.step !== 'ENTER_AMOUNT') return;
-
-    const amount = Number(raw.replace(/[^0-9]/g, ''));
-
-    if (!amount || amount < 100) {
-      return await this.whatsappApi.sendText(
-        from,
-        `❗ Please enter a valid amount (minimum ₦100).`,
+    if (!amount) {
+      return this.whatsappApi.sendText(
+        phone,
+        `❗ Invalid amount.\nPlease enter something like:\n• 5000\n• 75k\n• 2m`
       );
     }
 
+    const session = await this.cache.get(`tx:${phone}`);
     session.data.amount = amount;
     session.step = 'ENTER_ACCOUNT';
-    await this.saveSession(from, session);
 
-    await this.whatsappApi.sendText(
-      from,
-      `✅ You want to send *₦${amount.toLocaleString()}*.\n\n` +
-        `Please enter the *recipient's 10-digit account number*.`,
+    await this.cache.set(`tx:${phone}`, session);
+
+    return this.whatsappApi.sendText(
+      phone,
+      `🔢 Great! Enter the *recipient's account number*.`
     );
   }
 
-  // ---------------------------------------------------
-  // 3️⃣ HANDLE ACCOUNT NUMBER
-  // ---------------------------------------------------
-  async handleAccountNumber(from: string, raw: string) {
-    const session = await this.getSession(from);
-    if (!session || session.step !== 'ENTER_ACCOUNT') return;
+  private parseAmount(text: string): number | null {
+    const value = text.toLowerCase().trim();
 
-    const accountNumber = raw.replace(/\s/g, '');
+    if (/^\d+$/.test(value)) return parseInt(value);
 
-    if (!/^\d{10}$/.test(accountNumber)) {
-      return await this.whatsappApi.sendText(
-        from,
-        `❗ Account number must be *10 digits*. Please re-enter.`,
-      );
+    if (/^\d+k$/.test(value)) return parseInt(value) * 1000;
+
+    if (/^\d+m$/.test(value)) return parseInt(value) * 1_000_000;
+
+    return null;
+  }
+
+  /*---------------------------------------------------------
+   🔥 STEP 2 — Enter Account Number
+  ---------------------------------------------------------*/
+  async handleAccountNumber(phone: string, text: string) {
+    if (!/^\d{6,15}$/.test(text)) {
+      return this.whatsappApi.sendText(phone, `❗ Invalid account number.`);
     }
 
-    session.data.accountNumber = accountNumber;
+    const session = await this.cache.get(`tx:${phone}`);
+    session.data.accountNumber = text;
     session.step = 'ENTER_BANK';
-    await this.saveSession(from, session);
 
-    await this.whatsappApi.sendText(
-      from,
-      `🏦 Got it.\n\nWhat *bank* does the recipient use? (e.g. *GTBank*, *Access*, *Zenith*)`,
+    await this.cache.set(`tx:${phone}`, session);
+
+    return this.whatsappApi.sendText(
+      phone,
+      `🏦 Enter the *bank name* (e.g. GTBank, Zenith, Access).`
     );
   }
 
-  // ---------------------------------------------------
-  // 4️⃣ HANDLE BANK NAME + NAME ENQUIRY
-  // ---------------------------------------------------
-  async handleBankName(from: string, raw: string) {
-    const session = await this.getSession(from);
-    if (!session || session.step !== 'ENTER_BANK') return;
+  /*---------------------------------------------------------
+   🔥 STEP 3 — Enter Bank Name
+  ---------------------------------------------------------*/
+  async handleBankName(phone: string, text: string) {
+    const session = await this.cache.get(`tx:${phone}`);
 
-    const { accountNumber, amount } = session.data;
-    if (!accountNumber || !amount) {
-      await this.clearSession(from);
-      throw new BadRequestException('Transfer session expired. Please try again.');
+    const possibleBanks = await this.bankResolver.resolveBank(
+      text,
+      session.data.accountNumber
+    );
+
+    if (!possibleBanks.length) {
+      return this.whatsappApi.sendText(phone, `❗ I could not recognize that bank.\nTry again.`);
     }
 
-    const banks = await this.bankResolver.resolveBank(raw, accountNumber);
-
-    if (!banks.length) {
-      return await this.whatsappApi.sendText(
-        from,
-        `❗ I couldn't identify that bank. Please type the *exact bank name* (e.g. "GTBank").`,
+    if (possibleBanks.length > 1) {
+      return this.whatsappApi.sendText(
+        phone,
+        `❗ Multiple matches found.\nWhich one do you mean?\n${possibleBanks
+          .map((b) => `• ${b.bankName}`)
+          .join('\n')}`
       );
     }
 
-    const bank = banks[0];
+    const bank = possibleBanks[0];
 
-    const enquiry = await this.rubies.nameEnquiry(bank.bankCode, accountNumber);
-    const data = enquiry?.data ?? enquiry;
+    // 👉 Name Enquiry
+    const enquiry = await this.bankResolver.resolveBank(
+      bank.bankCode,
+      session.data.accountNumber
+    );
 
-    if (data?.responseCode !== '00') {
-      return await this.whatsappApi.sendText(
-        from,
-        `❗ I couldn't verify this account. Please confirm the number and bank and try again.`,
-      );
+    if (enquiry?.data?.responseCode !== '00') {
+      throw new BadRequestException('Invalid account number.');
     }
 
-    session.data.bankName = bank.bankName;
     session.data.bankCode = bank.bankCode;
-    session.data.accountName = data.accountName;
-    session.step = 'ENTER_PIN';
-    await this.saveSession(from, session);
+    session.data.bankName = bank.bankName;
+    session.data.accountName = enquiry.data.accountName;
+    session.step = 'CONFIRM';
 
-    await this.whatsappApi.sendText(
-      from,
-      `🧾 *Transfer Confirmation*\n\n` +
-        `Amount: *₦${amount.toLocaleString()}*\n` +
-        `Name: *${data.accountName}*\n` +
+    await this.cache.set(`tx:${phone}`, session);
+
+    return this.whatsappApi.sendText(
+      phone,
+      `🧾 *Confirm Transfer*\n\n` +
+        `Amount: *₦${session.data.amount.toLocaleString()}*\n` +
+        `Recipient: *${enquiry.data.accountName}*\n` +
         `Bank: *${bank.bankName}*\n` +
-        `Account: *${accountNumber}*\n\n` +
-        `👉 Please enter your *4-digit transaction PIN* to confirm.`,
+        `Account Number: *${session.data.accountNumber}*\n\n` +
+        `Enter your *4-digit PIN* to proceed.`
     );
   }
 
-  // ---------------------------------------------------
-  // 5️⃣ HANDLE PIN ENTRY → EXECUTE TRANSFER
-  // ---------------------------------------------------
-  async handlePinEntry(from: string, pin: string) {
-    const session = await this.getSession(from);
-    if (!session || session.step !== 'ENTER_PIN') return;
-
-    if (!/^\d{4}$/.test(pin)) {
-      return await this.whatsappApi.sendText(
-        from,
-        `❗ PIN must be *4 digits*. Please re-enter.`,
-      );
+  /*---------------------------------------------------------
+   🔥 STEP 4 — Confirm Transfer (ENTER PIN)
+  ---------------------------------------------------------*/
+  async handleTransferConfirmation(phone: string, text: string) {
+    if (!/^\d{4}$/.test(text)) {
+      return this.whatsappApi.sendText(phone, `❗ PIN must be 4 digits.`);
     }
 
-    const { amount, accountNumber, accountName, bankName, bankCode } =
-      session.data;
+    const session = await this.cache.get(`tx:${phone}`);
+    session.data.pin = text;
+    session.step = 'ENTER_PIN';
 
-    if (
-      !amount ||
-      !accountNumber ||
-      !accountName ||
-      !bankName ||
-      !bankCode
-    ) {
-      await this.clearSession(from);
-      throw new BadRequestException('Transfer session data incomplete.');
-    }
+    await this.cache.set(`tx:${phone}`, session);
 
-    // 1) Verify PIN
-    await this.transferService.verifyPin(from, pin);
+    return this.handlePinEntry(phone, text);
+  }
 
-    // 2) Execute transfer
-    const payload = {
-      amount,
-      accountNumber,
-      accountName,
-      bankName,
-      bankCode,
-    };
+  /*---------------------------------------------------------
+   🔥 STEP 5 — Validate PIN + Execute Transfer
+  ---------------------------------------------------------*/
+  async handlePinEntry(phone: string, pin: string) {
+    const session = await this.cache.get(`tx:${phone}`);
 
-    await this.whatsappApi.sendText(from, `⏳ Processing your transfer...`);
+    await this.transferService.verifyPin(phone, pin);
 
-    const tx = await this.transferService.executeTransfer(from, payload);
-
-    // 3) Clear session but keep beneficiary data in temp cache
-    await this.clearSession(from);
-    await this.cache.set(`tx:beneficiary:${from}`, payload, 10 * 60);
+    const tx = await this.transferService.executeTransfer(phone, session.data);
 
     await this.whatsappApi.sendText(
-      from,
+      phone,
       `✅ *Transfer Successful!*\n\n` +
-        `₦${amount.toLocaleString()} sent to *${accountName}* (${bankName}). 🎉`,
+        `₦${session.data.amount.toLocaleString()} sent to *${session.data.accountName}*.\n\n` +
+        `💾 Save this as a beneficiary?\nReply *yes* or *no*.`
     );
 
-    await this.whatsappApi.sendText(
-      from,
-      `💾 Would you like to *save this person* as a beneficiary?\nReply *yes* or *no*.`,
-    );
+    await this.cache.set(`beneficiary:${phone}`, session.data);
+    await this.cache.delete(`tx:${phone}`);
 
-    return tx;
+    return 'transfer_done';
   }
 
-  // ---------------------------------------------------
-  // 6️⃣ HANDLE BENEFICIARY YES/NO
-  // ---------------------------------------------------
-  async handleBeneficiaryDecision(from: string, text: string) {
-    const lower = text.trim().toLowerCase();
+  /*---------------------------------------------------------
+   🔥 STEP 6 — Save Beneficiary Decision
+  ---------------------------------------------------------*/
+  async handleBeneficiaryDecision(phone: string, text: string) {
+    const pending = await this.cache.get(`beneficiary:${phone}`);
 
-    if (!['yes', 'no'].includes(lower)) return;
+    if (!pending) return;
 
-    const payload = (await this.cache.get(
-      `tx:beneficiary:${from}`,
-    )) as TransferSessionData;
+    if (text.toLowerCase() === 'yes') {
+      await this.userService.saveBeneficiary(phone, pending);
 
-    if (!payload) {
-      return await this.whatsappApi.sendText(
-        from,
-        `Session expired. Next time after a transfer I'll ask again. 😉`,
+      await this.whatsappApi.sendText(
+        phone,
+        `💾 Beneficiary saved successfully!`
+      );
+    } else {
+      await this.whatsappApi.sendText(
+        phone,
+        `👍 Okay! I won’t save this beneficiary.`
       );
     }
 
-    if (lower === 'no') {
-      await this.cache.delete(`tx:beneficiary:${from}`);
-      return await this.whatsappApi.sendText(
-        from,
-        `👍 No problem. Beneficiary not saved.`,
-      );
-    }
+    await this.cache.delete(`beneficiary:${phone}`);
 
-    // yes → save
-    await this.transferService.saveBeneficiaryFromSession(from, {
-      amount: payload.amount!,
-      accountNumber: payload.accountNumber!,
-      accountName: payload.accountName!,
-      bankName: payload.bankName!,
-      bankCode: payload.bankCode!,
-    });
-
-    await this.cache.delete(`tx:beneficiary:${from}`);
-
-    return await this.whatsappApi.sendText(
-      from,
-      `💾 Beneficiary saved successfully! You can reuse them in future transfers.`,
-    );
+    return 'beneficiary_done';
   }
 }

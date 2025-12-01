@@ -108,23 +108,23 @@ export class VasService {
   /** ------------------------------------------------------
    * 1️⃣ USER SELECTS TRANSFER FROM MENU
    * ------------------------------------------------------ */
-  async startTransferFlow(phone: string, messageId: string) {
-    await this.whatsapp.sendTypingIndicator(phone, messageId);
 
-     await this.cache.set(`tx:${phone}`, {
+  async startTransferFlow(from: string, messageId: string) {
+  // create session
+  await this.cache.set(`tx:${from}`, {
     step: "ENTER_AMOUNT",
     data: {}
-  }, 300); // 5 min TTL
+  });
 
-    await this.whatsapp.sendText(
-      phone,
-      `💸 *Transfer Money*\n\nHow much do you want to transfer?`
-    );
+  await this.whatsapp.sendTypingIndicator(from, messageId);
+  await this.whatsapp.sendText(
+    from,
+    `💸 *Transfer Money*\n\nHow much do you want to transfer?`
+  );
 
-
-
-    return 'ask_amount';
-  }
+  return 'ask_amount';
+}
+  
 
 
   /** ------------------------------------------------------
