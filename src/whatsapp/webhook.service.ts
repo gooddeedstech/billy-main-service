@@ -145,7 +145,7 @@ if (msg.type === 'interactive' && msg.interactive.type === 'button_reply') {
       );
 
     default:
-      return await this.whatsappApi.sendMenu(from); // fallback
+      return await this.whatsappApi.sendMenu(from, messageId); // fallback
   }
 }
 

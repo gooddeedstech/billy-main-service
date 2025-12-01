@@ -208,7 +208,7 @@ const message =
   };
 }
 
-async sendHelpMenu(to: string) {
+async sendHelpMenu(to: string, messageId: string) {
   try {
     const message =
       `🤖 *Billy Help Center*\n` +
@@ -250,46 +250,63 @@ async sendHelpMenu(to: string) {
   }
 }
 
-async sendMenu(to: string, messageId?: string) {
+async sendMenu(to: string, messageId: string) {
   try {
-    // Optional typing indicator  
-    if (messageId) {
-      await this.sendTypingIndicator(to, messageId);
-      await new Promise(res => setTimeout(res, 800));
-    }
+    // 1️⃣ Show typing indicator
+    await this.sendTypingIndicator(to, messageId);
+    await this.delay(800);
 
+    // 2️⃣ Construct WhatsApp List Message
     const payload = {
-      messaging_product: "whatsapp",
+      messaging_product: 'whatsapp',
       to,
-      type: "interactive",
+      type: 'interactive',
       interactive: {
-        type: "button",
+        type: 'list',
         body: {
-          text:
-            "👇 *Welcome to Billy!*\n" +
-            "Choose an option to continue:"
+          text: `👋 *Welcome to Billy!*\n\nSelect what you’d like to do:`
+        },
+        footer: {
+          text: "Powered by Gooddeeds Technologies"
         },
         action: {
-          buttons: [
-            { type: "reply", reply: { id: "MENU_TRANSFER", title: "💸 Transfer" } },
-            { type: "reply", reply: { id: "MENU_AIRTIME", title: "📱 Airtime/Data" } },
-            { type: "reply", reply: { id: "MENU_BILLS", title: "⚡ Bills" } },
-            { type: "reply", reply: { id: "MENU_CRYPTO", title: "💱 Crypto" } },
-            { type: "reply", reply: { id: "MENU_BALANCE", title: "💰 Check Balance" } },
-            { type: "reply", reply: { id: "MENU_SUPPORT", title: "🛟 Support" } }
+          button: "Choose Option",
+          sections: [
+            {
+              title: "💸 Payments & Transfers",
+              rows: [
+                { id: "MENU_TRANSFER", title: "💸 Transfer Money" },
+                { id: "MENU_AIRTIME", title: "📱 Airtime & Data" },
+                { id: "MENU_BILLS", title: "🧾 Pay Bills" }
+              ]
+            },
+            {
+              title: "💼 Financial Services",
+              rows: [
+                { id: "MENU_CRYPTO", title: "💱 Crypto ↔ Naira" },
+                { id: "MENU_BALANCE", title: "💰 Wallet Balance" }
+              ]
+            },
+            {
+              title: "⚙️ Support",
+              rows: [
+                { id: "MENU_HELP", title: "❓ Help & Support" }
+              ]
+            }
           ]
         }
       }
     };
 
+    // 3️⃣ Send menu
     await firstValueFrom(
       this.http.post(this.apiUrl, payload, { headers: this.headers() })
     );
 
-    this.logger.log(`📤 Billy Menu sent to ${to}`);
-  } catch (err) {
+    this.logger.log(`📲 Billy menu sent to ${to}`);
+  } catch (error) {
     this.logger.error(
-      `❌ Failed to send menu: ${JSON.stringify(err.response?.data || err)}`
+      `❌ Failed to send menu: ${JSON.stringify(error.response?.data || error)}`
     );
   }
 }
@@ -319,5 +336,9 @@ async sendMenu(to: string, messageId?: string) {
       `❌ Failed to send typing indicator: ${JSON.stringify(error.response?.data || error)}`,
     );
   }
+}
+
+private delay(ms: number) {
+  return new Promise((res) => setTimeout(res, ms));
 }
 }
