@@ -85,8 +85,8 @@ export class TransferStepsService {
       text,
       session.data.accountNumber
     );
-
-    console.log(`OIZA ${JSON.stringify(possibleBanks)}`)
+  this.logger.log(`🎯 possible banks → ${possibleBanks}`);
+ 
 
     if (!possibleBanks.length) {
       await this.cache.delete(`tx:${phone}`);
