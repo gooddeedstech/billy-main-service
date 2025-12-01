@@ -38,38 +38,74 @@ export class WhatsappAPIWebhookController {
 @Post()
 @HttpCode(200)
 async handleIncoming(@Body() body: any) {
+  this.logger.debug('📥 Incoming WhatsApp Webhook');
+  // console.log(JSON.stringify(body, null, 2)); // Debug body
+
   const entry = body?.entry?.[0];
   const changes = entry?.changes?.[0];
   const msg = changes?.value?.messages?.[0];
-   this.logger.debug('📥 Incoming WhatsApp Webhook');
-  console.log(body)
+
   if (!msg) return 'OK';
-console.log('SAMUEL')
+
   const from = msg.from;
+
+  // -------------------------------------------------------
+  // 1️⃣ HANDLE FLOW SUBMISSION RESPONSE (nfm_reply)
+  // -------------------------------------------------------
+  if (msg.type === 'interactive' && msg.interactive?.type === 'nfm_reply') {
+    this.logger.log('📨 Flow submission received');
+
+    try {
+      const rawJson = msg.interactive.nfm_reply.response_json;
+      const flowData = JSON.parse(rawJson);
+
+      this.logger.log('🧾 Parsed flow data:', flowData);
+
+      // PROCESS THE FLOW RESULT — SAVE USER, VERIFY PIN, etc.
+     // await this.flowService.handleCompletedFlow(from, flowData);
+
+      // Send confirmation message
+      await this.whatsappApiService.sendText(
+        from,
+        `🎉 Registration successful, ${flowData.first_name}! Billy is ready to assist you.`
+      );
+
+      return 'OK';
+    } catch (err) {
+      this.logger.error('❌ Failed to parse Flow data', err);
+      return 'OK';
+    }
+  }
+
+  // -------------------------------------------------------
+  // 2️⃣ NORMAL INCOMING TEXT MESSAGE
+  // -------------------------------------------------------
+
   const messageId = msg.id;
   const text = msg.text?.body;
 
-  // 1) Extract WhatsApp profile name (first name only)
-  const waName =
-    changes?.value?.contacts?.[0]?.profile?.name || null;
-
+  // Extract WhatsApp profile name
+  const waName = changes?.value?.contacts?.[0]?.profile?.name || null;
   const firstName = waName?.split(' ')?.[0] ?? 'there';
 
-  // 2) Optionally load user from DB
-  //const user = await this.userService.findByPhone(from);
-  const finalName = firstName;
+  this.logger.log(`👤 Profile Name Detected: ${firstName}`);
 
-  console.log(`PROFILE - ${finalName}`)
-
-  // 3) Typing indicator
+  // Show typing indicator
   await this.whatsappApiService.sendTypingIndicator(from, messageId);
-  await new Promise((res) => setTimeout(res, 1200));
+  await this.delay(1000);
 
-  // 4) Send onboarding template
-  return await this.whatsappApiService.sendOnboardingTemplate(from, finalName);
+  // Send onboarding template
+  await this.whatsappApiService.sendOnboardingTemplate(from, firstName);
 
-  // 5) Continue processing your flow
-   this.webhookService.handleIncomingWebhook(body);
+  // Continue your internal pipeline (optional)
+  await this.webhookService.handleIncomingWebhook(body);
+
+  return 'OK';
+}
+
+// Helper
+private delay(ms: number) {
+  return new Promise((res) => setTimeout(res, ms));
 }
 //  @Post()
 //   @HttpCode(200)
