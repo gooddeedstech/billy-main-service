@@ -31,30 +31,53 @@ export class WhatsappWebhookService {
     const messageId = msg.id;
 
     this.logger.log(`📩 Incoming: ${from} → ${text}`);
+
+    // ---------------------------------------------------
+// 🔥 GLOBAL CANCEL HANDLER — Works Anytime
+// ---------------------------------------------------
+      if (lower === 'cancel') {
+        await this.cache.delete(`tx:${from}`);
+        await this.cache.delete(`beneficiary:${from}`);
+
+        await this.whatsappApi.sendText(
+          from,
+          `❌ *Transfer Cancelled*\nYour session has been cleared.`
+        );
+
+        return await this.whatsappApi.sendMenu(from, msg.id);
+      }
      
 
     /* ======================================================
      * 🔥 1. ACTIVE TRANSFER SESSION (Redis)
      * ====================================================== */
     const session = await this.cache.get(`tx:${from}`);
-    this.logger.log(`🔥 Session ${session}`);
+    this.logger.log(`🔥 Session ${JSON.stringify(session)}`);
 
     if (session) {
       this.logger.log(`🔥 Routing transfer step for ${from}: ${session.step}`);
+switch (session.step) {
+  case 'ENTER_AMOUNT':
+    return await this.transferStepsService.handleTransferAmount(from, text);
 
-      switch (session.step) {
-        case 'ENTER_AMOUNT':
-          return await this.transferStepsService.handleTransferAmount(from, text);
+  case 'ENTER_ACCOUNT':
+    return await this.transferStepsService.handleAccountNumber(from, text);
 
-        case 'ENTER_ACCOUNT':
-          return await this.transferStepsService.handleAccountNumber(from, text);
+  case 'ENTER_BANK':
+    return await this.transferStepsService.handleBankName(from, text);
 
-        case 'ENTER_BANK':
-          return await this.transferStepsService.handleBankName(from, text);
+  case 'CONFIRM_PIN':  // user must enter PIN here
+    return await this.transferStepsService.handleTransferConfirmation(from, text);
 
-        case 'CONFIRM_PIN':
-          return await this.transferStepsService.handlePinEntry(from, text);
-      }
+  case 'ENTER_PIN':    // after PIN validated
+    return await this.transferStepsService.handlePinEntry(from, text);
+
+  case 'ASK_SAVE_BENEFICIARY':
+    return await this.transferStepsService.handleBeneficiaryDecision(from, text);
+
+  default:
+    break;
+}
     }
 
     /* ======================================================
