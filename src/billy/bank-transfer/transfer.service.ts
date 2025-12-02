@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
 import { UserService } from '@/flows/on-boading/services/user.service';
 import { RubiesService } from '@/rubies/rubies.service';
@@ -28,6 +28,7 @@ export interface RubiesTransferDto {
 
 @Injectable()
 export class TransferService {
+  private readonly logger = new Logger(TransferService.name);
   constructor(
     private readonly userService: UserService,
     private readonly rubies: RubiesService,
@@ -63,6 +64,7 @@ export class TransferService {
     payload: ExecuteTransferPayload,
   ): Promise<any> {
     const user = await this.userService.findByPhone(phone);
+     this.logger.log(`🔥 PIN STEP  ${JSON.stringify(user)} `);
     if (!user) throw new BadRequestException('User not found');
 
     if (!user.virtualAccount) {
