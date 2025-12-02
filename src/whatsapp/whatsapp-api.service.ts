@@ -338,6 +338,29 @@ async sendMenu(to: string, messageId: string) {
   }
 }
 
+async sendTransferPinFlow(to: string, sessionData: any) {
+  const payload = {
+    messaging_product: "whatsapp",
+    to,
+    type: "interactive",
+    interactive: {
+      type: "flow",
+      body: { text: "To complete your transfer, verify with your PIN." },
+      action: {
+        name: "transfer_pin_flow",
+        parameters: {
+          flow_id: 1552091389437467,
+          flow_token: process.env.FLOW_PRIVATE_KEY
+        }
+      }
+    }
+  };
+
+  await firstValueFrom(
+    this.http.post(this.apiUrl, payload, { headers: this.headers() })
+  );
+}
+
 private delay(ms: number) {
   return new Promise((res) => setTimeout(res, ms));
 }
