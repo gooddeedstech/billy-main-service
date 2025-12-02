@@ -176,6 +176,19 @@ export class TransferStepsService {
 
     const tx = await this.transferService.executeTransfer(phone, session.data);
 
+     if (!tx || tx.responseCode !== '00') {
+    await this.whatsappApi.sendText(
+      phone,
+      `❌ *Transfer Failed*\n\n${
+        tx?.responseMessage || 'Unable to complete transfer'
+      }\n\nPlease try again or type *cancel* to abort.`
+    );
+
+    // End session on failure
+    await this.cache.delete(`tx:${phone}`);
+    return 'transfer_failed';
+  }
+
     await this.whatsappApi.sendText(
       phone,
       `✅ *Transfer Successful!*\n\n` +

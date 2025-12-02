@@ -82,7 +82,15 @@ async executeTransfer(
   // 🔥 STOP if insufficient balance
   try {
     this.ensureSufficientBalance(user, payload.amount);
-    const request: RubiesTransferDto = {
+  } catch (err) {
+    await this.cache.delete(`tx:${phone}`);
+    return this.whatsappApi.sendText(
+      phone,
+      `❗ Insufficient wallet balance.\nYour current balance is ₦${Number(user.balance || 0).toLocaleString()}`
+    );
+  }
+
+  const request: RubiesTransferDto = {
     amount: payload.amount,
     creditAccountNumber: payload.accountNumber,
     creditAccountName: payload.accountName,
@@ -101,16 +109,6 @@ async executeTransfer(
   await this.userService.update(user.id, user);
 
   return tx;
-  
-  } catch (err) {
-    await this.cache.delete(`tx:${phone}`);
-    return this.whatsappApi.sendText(
-      phone,
-      `❗ Insufficient wallet balance.\nYour current balance is ₦${Number(user.balance || 0).toLocaleString()}`
-    );
-  }
-
-  
 }
 
   // ---------------- BENEFICIARY ----------------
