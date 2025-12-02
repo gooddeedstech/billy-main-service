@@ -4,6 +4,7 @@ import { UserService } from '@/flows/on-boading/services/user.service';
 import { RubiesService } from '@/rubies/rubies.service';
 import { CacheService } from '@/cache/cache.service';
 import { BeneficiaryType } from '@/flows/on-boading/services/enum/user.enums';
+import { WhatsappApiService } from '@/whatsapp/whatsapp-api.service';
 
 export interface ExecuteTransferPayload {
   amount: number;
@@ -33,6 +34,7 @@ export class TransferService {
     private readonly userService: UserService,
     private readonly rubies: RubiesService,
     private readonly cache: CacheService,
+    private readonly whatsappApi: WhatsappApiService,
   ) {}
 
   // ---------------- PIN & BALANCE ----------------
@@ -51,10 +53,9 @@ export class TransferService {
     return user;
   }
 
-  private ensureSufficientBalance(user: any, amount: number) {
+  private ensureSufficientBalance(phone: string, user: any, amount: number) {
     if (user.balance == null || Number(user.balance) < amount) {
-        this.logger.log(`Insufficient wallet balance.`);
-      throw new BadRequestException('Insufficient wallet balance');
+       return this.whatsappApi.sendText(phone, `❗ Insufficient wallet balance.`);
     }
   }
 
@@ -69,13 +70,10 @@ export class TransferService {
     if (!user) throw new BadRequestException('User not found');
 
     if (!user.virtualAccount) {
-      this.logger.log(`No virtual account linked to this user. Please contact support.`);
-      throw new BadRequestException(
-        'No virtual account linked to this user. Please contact support.',
-      );
+       return this.whatsappApi.sendText(phone, `❗ No virtual account linked to this user. Please contact support.`);
     }
 
-    this.ensureSufficientBalance(user, payload.amount);
+    this.ensureSufficientBalance(phone, user, payload.amount);
 
     const request: RubiesTransferDto = {
       amount: payload.amount,
