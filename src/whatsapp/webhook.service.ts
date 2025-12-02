@@ -44,7 +44,7 @@ export class WhatsappWebhookService {
           `❌ *Transfer Cancelled*\nYour session has been cleared.`
         );
 
-        return await this.whatsappApi.sendMenu(from, msg.id);
+        return 'cancelled';
       }
      
 

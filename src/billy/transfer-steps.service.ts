@@ -4,6 +4,7 @@ import { WhatsappApiService } from '@/whatsapp/whatsapp-api.service';
 import { TransferService } from '@/billy/bank-transfer/transfer.service';
 import { BankResolverService } from '@/billy/bank-transfer/bank-resolver.service';
 import { TransferSession, TransferSessionData } from '@/billy/bank-transfer/transfer-session.types';
+import { BankResolverServiceNew } from './bank-transfer/generator/bank-resolver.service';
 
 @Injectable()
 export class TransferStepsService {
@@ -13,7 +14,7 @@ export class TransferStepsService {
     private readonly cache: CacheService,
     private readonly whatsappApi: WhatsappApiService,
     private readonly transferService: TransferService,
-    private readonly bankResolver: BankResolverService,
+    private readonly bankResolver: BankResolverServiceNew,
   ) {}
 
   /* -------------------------------------------------------------------
@@ -36,31 +37,32 @@ export class TransferStepsService {
   /* -------------------------------------------------------------------
      STEP 1 — ENTER AMOUNT
   ------------------------------------------------------------------- */
-  async handleTransferAmount(phone: string, text: string) {
-    if (this.isCancel(text)) return this.abort(phone);
+ async handleTransferAmount(phone: string, text: string) {
+  if (this.isCancel(text)) return this.abort(phone);
 
-    const amount = Number(text.replace(/\D/g, ''));
+  const amount = this.parseAmount(text);
 
-    if (!amount || amount < 100) {
-      return this.whatsappApi.sendText(
-        phone,
-        `❗ Enter a valid amount (minimum ₦100).\n\nType *cancel* to stop.`
-      );
-    }
-
-    const session: TransferSession = {
-      step: 'ENTER_ACCOUNT',
-      data: { amount },
-      createdAt: Date.now(),
-    };
-
-    await this.cache.set(`tx:${phone}`, session);
-
+  if (!amount || amount < 100) {
     return this.whatsappApi.sendText(
       phone,
-      `🔢 Great! You're sending *₦${amount.toLocaleString()}*.\n\nEnter the *recipient's account number*.\n\nType *cancel* to stop.`
+      `❗ Enter a valid amount (e.g. *5000*, *5k*, *2.5k*, *1m*).\n\nMinimum is ₦100.\nType *cancel* to stop.`
     );
   }
+
+  const session: TransferSession = {
+    step: 'ENTER_ACCOUNT',
+    data: { amount },
+    createdAt: Date.now(),
+  };
+
+  await this.cache.set(`tx:${phone}`, session);
+
+  return this.whatsappApi.sendText(
+    phone,
+    `🔢 Great! You're sending *₦${amount.toLocaleString()}*.\n\n` +
+    `Enter the *recipient's account number*.\n\nType *cancel* to stop.`
+  );
+}
 
   /* -------------------------------------------------------------------
      STEP 2 — ENTER ACCOUNT NUMBER
@@ -77,7 +79,7 @@ export class TransferStepsService {
       );
     }
 
-    const session = await this.cache.get<TransferSession>(`tx:${phone}`);
+    const session = await this.cache.get(`tx:${phone}`);
     session.data.accountNumber = accountNumber;
     session.step = 'ENTER_BANK';
 
@@ -103,7 +105,11 @@ export class TransferStepsService {
     );
 
     if (!result.success) {
-      return this.abort(phone, `❗ I couldn't recognize that bank.\nSession reset.`);
+      return this.whatsappApi.sendText(
+      phone,
+      `❗ Invalid Account Number (${session.data.accountNumber}).\nType *cancel* to stop.`
+    );
+
     }
 
     const bank = result.bank; // safe now
@@ -154,9 +160,14 @@ export class TransferStepsService {
         `❗ PIN must be *4 digits*.\nTry again or type *cancel*.`
       );
     }
+     this.logger.log(`🔥 PIN STEP  ${phone} - ${text}`);
+  
     const session = await this.cache.get(`tx:${phone}`);
 
-    await this.transferService.verifyPin(phone, text);
+    const pin = await this.transferService.verifyPin(phone, text);
+    if(pin){
+       this.logger.log(`🔥 PIN validation successful`);
+    }
 
     const tx = await this.transferService.executeTransfer(phone, session.data);
 
@@ -207,4 +218,33 @@ export class TransferStepsService {
 
     return 'beneficiary_done';
   }
+
+  private parseAmount(text: string): number | null {
+  let clean = text.trim().toLowerCase();
+
+  // Remove currency symbols and commas
+  clean = clean.replace(/[,₦]/g, '');
+
+  // Handle “25k”
+  if (clean.endsWith('k')) {
+    const num = parseFloat(clean.replace('k', ''));
+    return isNaN(num) ? null : Math.round(num * 1000);
+  }
+
+  // Handle “1m”
+  if (clean.endsWith('m')) {
+    const num = parseFloat(clean.replace('m', ''));
+    return isNaN(num) ? null : Math.round(num * 1_000_000);
+  }
+
+  // Handle “20 thousand”
+  if (clean.includes('thousand')) {
+    const num = parseFloat(clean.replace('thousand', '').trim());
+    return isNaN(num) ? null : Math.round(num * 1000);
+  }
+
+  // Handle pure numbers
+  const num = Number(clean);
+  return isNaN(num) ? null : num;
+}
 }
