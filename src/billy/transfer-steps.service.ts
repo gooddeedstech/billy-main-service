@@ -105,12 +105,17 @@ export class TransferStepsService {
     );
 
     if (!result.success) {
-      return this.whatsappApi.sendText(
-      phone,
-      `❗ Invalid Account Number (${session.data.accountNumber}).\nType *cancel* to stop.`
-    );
+  // Move user back to ENTER_ACCOUNT step
+  session.step = 'ENTER_ACCOUNT';
+  await this.cache.set(`tx:${phone}`, session);
 
-    }
+  return this.whatsappApi.sendText(
+    phone,
+    `❗ Invalid bank or account number.\n` +
+    `Please re-enter the *recipient's account number*.\n\n` +
+    `Type *cancel* to stop.`
+  );
+}
 
     const bank = result.bank; // safe now
 

@@ -53,48 +53,63 @@ export class TransferService {
     return user;
   }
 
-  private ensureSufficientBalance(phone: string, user: any, amount: number) {
-    if (user.balance == null || Number(user.balance) < amount) {
-       return this.whatsappApi.sendText(phone, `❗ Insufficient wallet balance. Your Current Balance is: ${user.balance}`);
-    }
+ private ensureSufficientBalance(user: any, amount: number) {
+  if (!user.balance || Number(user.balance) < amount) {
+    throw new BadRequestException(
+      `❗ Insufficient wallet balance.\nYour current balance is ₦${Number(user.balance || 0).toLocaleString()}`
+    );
   }
+}
 
   // ---------------- EXECUTE TRANSFER ----------------
 
-  async executeTransfer(
-    phone: string,
-    payload: ExecuteTransferPayload,
-  ): Promise<any> {
-    const user = await this.userService.findByPhone(phone);
-     this.logger.log(`🔥 PIN STEP  ${JSON.stringify(user)} `);
-    if (!user) throw new BadRequestException('User not found');
+async executeTransfer(
+  phone: string,
+  payload: ExecuteTransferPayload,
+): Promise<any> {
+  const user = await this.userService.findByPhone(phone);
+  this.logger.log(`🔥 Executing transfer for ${phone}`);
 
-    if (!user.virtualAccount) {
-       return this.whatsappApi.sendText(phone, `❗ No virtual account linked to this user. Please contact support.`);
-    }
+  if (!user) throw new BadRequestException('User not found');
 
-    this.ensureSufficientBalance(phone, user, payload.amount);
-
-    const request: RubiesTransferDto = {
-      amount: payload.amount,
-      creditAccountNumber: payload.accountNumber,
-      creditAccountName: payload.accountName,
-      bankCode: payload.bankCode,
-      bankName: payload.bankName,
-      narration: `Billy Transfer From: ${user.firstName} ${user.lastName}`,
-      debitAccountNumber: user.virtualAccount,
-      reference: `billy-tx-${Date.now()}`,
-      sessionId: `${user.phoneNumber}-${Date.now()}`,
-    };
-
-    const tx = await this.rubies.fundTransfer(request);
-
-    // Update wallet balance locally
-    user.balance = Number(user.balance || 0) - payload.amount;
-    await this.userService.update(user.id, user);
-
-    return tx;
+  if (!user.virtualAccount) {
+    return this.whatsappApi.sendText(
+      phone,
+      `❗ No virtual account linked to this user. Please contact support.`
+    );
   }
+
+  // 🔥 STOP if insufficient balance
+  try {
+    this.ensureSufficientBalance(user, payload.amount);
+  } catch (err) {
+    await this.cache.delete(`tx:${phone}`);
+    return this.whatsappApi.sendText(
+      phone,
+      `❗ Insufficient wallet balance.\nYour current balance is ₦${Number(user.balance || 0).toLocaleString()}`
+    );
+  }
+
+  const request: RubiesTransferDto = {
+    amount: payload.amount,
+    creditAccountNumber: payload.accountNumber,
+    creditAccountName: payload.accountName,
+    bankCode: payload.bankCode,
+    bankName: payload.bankName,
+    narration: `Billy Transfer From: ${user.firstName} ${user.lastName}`,
+    debitAccountNumber: user.virtualAccount,
+    reference: `billy-tx-${Date.now()}`,
+    sessionId: `${user.phoneNumber}-${Date.now()}`
+  };
+
+  const tx = await this.rubies.fundTransfer(request);
+
+  // 🧮 Update wallet balance
+  user.balance = Number(user.balance || 0) - payload.amount;
+  await this.userService.update(user.id, user);
+
+  return tx;
+}
 
   // ---------------- BENEFICIARY ----------------
 
