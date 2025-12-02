@@ -127,8 +127,8 @@ switch (session.step) {
      * 🔥 7. FALLBACK → MENU
      * ====================================================== */
     // if no session: THEN show menu.
-if (!session) {
-  return await this.whatsappApi.sendMenu(from, messageId);
+if (lower === 'menu' || lower === 'help') {
+  return this.whatsappApi.sendMenu(from, messageId);
 }
 
 // If session exists: NEVER show menu
