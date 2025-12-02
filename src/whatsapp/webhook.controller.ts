@@ -74,7 +74,7 @@ async handleIncoming(@Body() body: any) {
 
    const messageId = msg.id;
   await this.whatsappApiService.sendTypingIndicator(from, messageId);
-  await this.delay(1000);
+  await this.delay(700);
 
   /** -------------------------------------------------------
    * 2️⃣ NORMAL MESSAGE → Forward to Main Handler

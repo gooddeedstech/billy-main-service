@@ -53,6 +53,7 @@ export class TransferService {
 
   private ensureSufficientBalance(user: any, amount: number) {
     if (user.balance == null || Number(user.balance) < amount) {
+        this.logger.log(`Insufficient wallet balance.`);
       throw new BadRequestException('Insufficient wallet balance');
     }
   }
@@ -68,6 +69,7 @@ export class TransferService {
     if (!user) throw new BadRequestException('User not found');
 
     if (!user.virtualAccount) {
+      this.logger.log(`No virtual account linked to this user. Please contact support.`);
       throw new BadRequestException(
         'No virtual account linked to this user. Please contact support.',
       );

@@ -194,7 +194,7 @@ return 'session_active';
   /* ======================================================
    * ⏳ Typing Simulation
    * ====================================================== */
-  private async typing(to: string, messageId: string, delayMs = 900) {
+  private async typing(to: string, messageId: string, delayMs = 400) {
     await this.whatsappApi.sendTypingIndicator(to, messageId);
     await this.delay(delayMs);
   }
