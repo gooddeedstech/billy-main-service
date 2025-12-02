@@ -4,6 +4,7 @@ import { RubiesCreateVirtualAccountDto } from './dto/create-virtual-account.dto'
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { BankResolverService } from '@/billy/bank-transfer/bank-resolver.service';
 import { ResolveBankDto } from './dto/resolve-bank.dto';
+import { BankResolverServiceNew } from '@/billy/bank-transfer/generator/bank-resolver.service';
 
 @ApiTags('Rubies Virtual Account')
 @Controller('rubies/virtual-account')
@@ -12,7 +13,7 @@ export class RubiesVirtualAccountController {
 
   constructor(
     private readonly rubiesVAService: RubiesVirtualAccountService,
-    private readonly resolver: BankResolverService
+    private readonly resolver: BankResolverServiceNew
   ) {}
 
   @Post('create')
@@ -42,24 +43,12 @@ export class RubiesVirtualAccountController {
   })
   async resolveBank(
     @Body() dto: ResolveBankDto,
-  ): Promise<{ success: boolean; count: number; banks: ResolveBankDto[] }> {
+  ) {
     const { bank, accountNumber } = dto;
 
-    const result = await this.resolver.resolveBank(bank, accountNumber);
+    return await this.resolver.resolveBank(bank, accountNumber);
 
-    if (!result || result.length === 0) {
-      throw new BadRequestException({
-        success: false,
-        message:
-          'Unable to determine bank. Please specify bank name or try again.',
-      });
-    }
-
-    return {
-      success: true,
-      count: result.length,
-      banks: result,
-    };
+ 
   }
 
 

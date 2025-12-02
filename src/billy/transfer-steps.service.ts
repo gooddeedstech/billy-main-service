@@ -4,6 +4,7 @@ import { WhatsappApiService } from '@/whatsapp/whatsapp-api.service';
 import { UserService } from '@/flows/on-boading/services/user.service';
 import { TransferService } from '@/billy/bank-transfer/transfer.service';
 import { BankResolverService } from './bank-transfer/bank-resolver.service';
+import { BankResolverServiceNew } from './bank-transfer/generator/bank-resolver.service';
 
 
 @Injectable()
@@ -15,7 +16,7 @@ export class TransferStepsService {
     private readonly whatsappApi: WhatsappApiService,
     private readonly userService: UserService,
     private readonly transferService: TransferService,
-    private readonly bankResolver: BankResolverService,
+    private readonly bankResolver: BankResolverServiceNew,
   ) {}
 
   /*---------------------------------------------------------
@@ -78,50 +79,92 @@ export class TransferStepsService {
   /*---------------------------------------------------------
    🔥 STEP 3 — Enter Bank Name
   ---------------------------------------------------------*/
-  async handleBankName(phone: string, text: string) {
-    const session = await this.cache.get(`tx:${phone}`);
+  // async handleBankName(phone: string, text: string) {
+  //   const session = await this.cache.get(`tx:${phone}`);
 
-    const possibleBanks = await this.bankResolver.resolveBank(
-      text,
-      session.data.accountNumber
-    );
-  this.logger.log(`🎯 possible banks → ${JSON.stringify(possibleBanks)}`);
+  //   const possibleBanks = await this.bankResolver.resolveBank(
+  //     text,
+  //     session.data.accountNumber
+  //   );
+  // this.logger.log(`🎯 possible banks → ${JSON.stringify(possibleBanks)}`);
  
 
-    if (!possibleBanks) {
-      await this.cache.delete(`tx:${phone}`);
-      return this.whatsappApi.sendText(phone, `❗ I could not recognize that bank.\nTry again.`);
-    }
+  //   if (!possibleBanks) {
+  //     await this.cache.delete(`tx:${phone}`);
+  //     return this.whatsappApi.sendText(phone, `❗ I could not recognize that bank.\nTry again.`);
+  //   }
 
-    // if (possibleBanks.length > 1) {
-    //   return this.whatsappApi.sendText(
-    //     phone,
-    //     `❗ Multiple matches found.\nWhich one do you mean?\n${possibleBanks
-    //       .map((b) => `• ${b.bankName}`)
-    //       .join('\n')}`
-    //   );
-    // }
+  //   // if (possibleBanks.length > 1) {
+  //   //   return this.whatsappApi.sendText(
+  //   //     phone,
+  //   //     `❗ Multiple matches found.\nWhich one do you mean?\n${possibleBanks
+  //   //       .map((b) => `• ${b.bankName}`)
+  //   //       .join('\n')}`
+  //   //   );
+  //   // }
 
-    const bank = possibleBanks?.bank;
+  //  /
    
 
-    session.data.bankCode = bank.bankCode;
-    session.data.bankName = bank.bankName;
-    session.data.accountName = bank.accountName;
-    session.step = 'CONFIRM_PIN';
+  //   session.data.bankCode = possibleBanks?.bank.bankCode;
+  //   session.data.bankName = bank.bankName;
+  //   session.data.accountName = bank.accountName;
+  //   session.step = 'CONFIRM_PIN';
 
-    await this.cache.set(`tx:${phone}`, session);
+  //   await this.cache.set(`tx:${phone}`, session);
 
-    return this.whatsappApi.sendText(
-      phone,
-      `🧾 *Confirm Transfer*\n\n` +
-        `Amount: *₦${session.data.amount.toLocaleString()}*\n` +
-        `Recipient: *${bank.accountName}*\n` +
-        `Bank: *${bank.bankName}*\n` +
-        `Account Number: *${session.data.accountNumber}*\n\n` +
-        `Enter your *4-digit PIN* to proceed.`
-    );
+  //   return this.whatsappApi.sendText(
+  //     phone,
+  //     `🧾 *Confirm Transfer*\n\n` +
+  //       `Amount: *₦${session.data.amount.toLocaleString()}*\n` +
+  //       `Recipient: *${bank.accountName}*\n` +
+  //       `Bank: *${bank.bankName}*\n` +
+  //       `Account Number: *${session.data.accountNumber}*\n\n` +
+  //       `Enter your *4-digit PIN* to proceed.`
+  //   );
+  // }
+  async handleBankName(phone: string, text: string) {
+  const session = await this.cache.get(`tx:${phone}`);
+
+  const result = await this.bankResolver.resolveBank(
+    text,
+    session.data.accountNumber
+  );
+
+  if (!result.success) {
+    await this.cache.delete(`tx:${phone}`);
+    return this.whatsappApi.sendText(phone, `❗ I could not recognize that bank. Try again.`);
   }
+
+  const bank = result.bank; // now safe ✔️
+
+  // Name Enquiry
+  // const enquiry = await this.rubies.nameEnquiry(bank.bankCode, session.data.accountNumber);
+
+  // const data = enquiry?.data || enquiry;
+
+  // if (data.responseCode !== '00') {
+  //   await this.cache.delete(`tx:${phone}`);
+  //   throw new BadRequestException('Invalid account number.');
+  // }
+
+  session.data.bankCode = bank.bankCode;
+  session.data.bankName = bank.bankName;
+  session.data.accountName = result.accountName;
+  session.step = 'CONFIRM_PIN';
+
+  await this.cache.set(`tx:${phone}`, session);
+
+  return this.whatsappApi.sendText(
+    phone,
+    `🧾 *Confirm Transfer*\n\n` +
+    `Amount: *₦${session.data.amount.toLocaleString()}*\n` +
+    `Recipient: *${result.accountName}*\n` +
+    `Bank: *${bank.bankName}*\n` +
+    `Account Number: *${session.data.accountNumber}*\n\n` +
+    `Enter your *4-digit PIN* to proceed.`
+  );
+}
 
   /*---------------------------------------------------------
    🔥 STEP 4 — Confirm Transfer (ENTER PIN)

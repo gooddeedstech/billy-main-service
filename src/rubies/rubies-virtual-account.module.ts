@@ -5,6 +5,7 @@ import { RubiesVirtualAccountService } from './rubies-virtual-account.service';
 import { RubiesVirtualAccountController } from './rubies-virtual-account.controller';
 import { BankResolverService } from '@/billy/bank-transfer/bank-resolver.service';
 import { RubiesService } from './rubies.service';
+import { BankResolverServiceNew } from '@/billy/bank-transfer/generator/bank-resolver.service';
 
 @Module({
   imports: [
@@ -14,7 +15,7 @@ import { RubiesService } from './rubies.service';
     }),
   ],
   controllers: [RubiesVirtualAccountController],
-  providers: [RubiesVirtualAccountService, BankResolverService, RubiesService],
+  providers: [RubiesVirtualAccountService, BankResolverService,BankResolverServiceNew, RubiesService],
   exports: [RubiesVirtualAccountService, BankResolverService],
 })
 export class RubiesVirtualAccountModule {}

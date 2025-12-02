@@ -42,9 +42,6 @@ export const BANK_NAME_MAP: Record<string, string> = {
   "uba": "033",
   "united bank for africa": "033",
 
-  // FIDELITY BANK
-  "fidelity": "070",
-  "fidelity bank": "070",
 
   // FCMB
   "fcmb": "214",

@@ -107,11 +107,8 @@ private async post(endpoint: string, payload: any) {
   /** -----------------------------------------------------
    * 🔍 2. Name Enquiry
    * ----------------------------------------------------- */
-  async nameEnquiry(bankCode: string, accountNumber: string) {
-  const payload = {
-    bankCode,
-    accountNumber,
-  };
+  async nameEnquiry(accountBankCode: string, accountNumber: string) {
+   const payload = { accountBankCode, accountNumber };
   console.log(payload)
 
   const res = await this.post("name-enquiry", payload);

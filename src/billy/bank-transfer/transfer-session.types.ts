@@ -2,7 +2,7 @@ export type TransferStep =
   | 'ENTER_AMOUNT'
   | 'ENTER_ACCOUNT'
   | 'ENTER_BANK'
-  | 'CONFIRM'
+  | 'CONFIRM_PIN'
   | 'ENTER_PIN'
   | 'ASK_SAVE_BENEFICIARY'
   | 'DONE';
