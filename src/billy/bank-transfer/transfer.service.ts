@@ -55,7 +55,7 @@ export class TransferService {
 
   private ensureSufficientBalance(phone: string, user: any, amount: number) {
     if (user.balance == null || Number(user.balance) < amount) {
-       return this.whatsappApi.sendText(phone, `❗ Insufficient wallet balance.`);
+       return this.whatsappApi.sendText(phone, `❗ Insufficient wallet balance. Your Current Balance is: ${user.balance}`);
     }
   }
 
