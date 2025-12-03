@@ -97,7 +97,7 @@ switch (session.step) {
   if (msg.type === 'interactive' && msg.interactive?.type === 'nfm_reply') {
   const rawJson = msg.interactive.nfm_reply.response_json;
   const data = JSON.parse(rawJson);
-
+    this.logger.log(`PIN ${JSON.stringify(data)}`)
   // 🔍 Detect if it's a PIN flow
   if (data.pin) {
     return await this.handlePinFlowSubmission(from, data, messageId);
@@ -161,29 +161,29 @@ return 'session_active';
   try {
     const pin = data.pin;
 
-    // Validate PIN
-    await this.transferService.verifyPin(from, pin);
+    await this.transferStepsService.handleTransferConfirmation(from, pin);
+    
 
-    // Execute transfer
-    const tx = await this.transferService.executeTransfer(from, session.data);
+    // // Execute transfer
+    // const tx = await this.transferService.executeTransfer(from, session.data);
 
-    await this.whatsappApi.sendText(
-      from,
-      `✅ *Transfer Successful!*\n\n` +
-        `₦${session.data.amount.toLocaleString()} sent to *${session.data.accountName}*.`
-    );
+    // await this.whatsappApi.sendText(
+    //   from,
+    //   `✅ *Transfer Successful!*\n\n` +
+    //     `₦${session.data.amount.toLocaleString()} sent to *${session.data.accountName}*.`
+    // );
 
-    // beneficiary?
-    await this.whatsappApi.sendText(
-      from,
-      `💾 Do you want to *save this beneficiary*?\nReply *yes* or *no*.`
-    );
+    // // beneficiary?
+    // await this.whatsappApi.sendText(
+    //   from,
+    //   `💾 Do you want to *save this beneficiary*?\nReply *yes* or *no*.`
+    // );
 
-    // Save data for yes/no
-    await this.cache.set(`beneficiary:${from}`, session.data);
+    // // Save data for yes/no
+    // await this.cache.set(`beneficiary:${from}`, session.data);
 
-    // Clear transfer session
-    await this.cache.delete(`tx:${from}`);
+    // // Clear transfer session
+    // await this.cache.delete(`tx:${from}`);
 
     return "pin_flow_done";
 
