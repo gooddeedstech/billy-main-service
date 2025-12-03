@@ -25,6 +25,7 @@ import { TransferStepsService } from '@/billy/transfer-steps.service';
 import { BankResolverServiceNew } from '@/billy/bank-transfer/generator/bank-resolver.service';
 import { UserTransactionService } from '@/billy/bank-transfer/user-transaction.service';
 import { RubiesWebhookController } from '@/rubies/webhook/rubies-webhook.controller';
+import { FreeTextTransferParserService } from '@/billy/parsed-text/free-text-transfer-parser.service';
 
 
 @Module({
@@ -45,7 +46,7 @@ import { RubiesWebhookController } from '@/rubies/webhook/rubies-webhook.control
         UserTransaction,
         Tier,
       ]),],          
-  providers: [WhatsappApiService,WhatsappEventFilterService,UserTransactionService, BankResolverServiceNew,TransferStepsService,TransferParserService,VasService,BankResolverService,TransferService, RubiesKYCService,RubiesVirtualAccountService, RubiesService,CacheService, UserService, WhatsappWebhookService, OnboardingFlowService],
+  providers: [WhatsappApiService,WhatsappEventFilterService,FreeTextTransferParserService, UserTransactionService, BankResolverServiceNew,TransferStepsService,TransferParserService,VasService,BankResolverService,TransferService, RubiesKYCService,RubiesVirtualAccountService, RubiesService,CacheService, UserService, WhatsappWebhookService, OnboardingFlowService],
   controllers:[WhatsappAPIWebhookController, RubiesWebhookController],
   exports: [WhatsappApiService],  
 })
