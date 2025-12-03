@@ -63,8 +63,14 @@ export class OnboardingUser {
   @ManyToOne(() => Tier, (tier) => tier.users, { nullable: true })
   tier?: Tier; 
 
-    @Column({ type: 'decimal', precision: 18, scale: 2, nullable: true })
-  balance!: number;
+ @Column({
+  type: 'decimal',
+  precision: 18,
+  scale: 2,
+  default: 0,
+  nullable: false,
+})
+balance!: number;
 
   @CreateDateColumn()
   createdAt!: Date;
