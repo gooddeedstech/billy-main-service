@@ -5,6 +5,8 @@ import { CacheService } from '@/cache/cache.service';
 import { VasService } from '@/billy/vas.service';
 import { TransferStepsService } from '@/billy/transfer-steps.service';
 import { TransferService } from '@/billy/bank-transfer/transfer.service';
+import { FreeTextTransferParserService } from '@/billy/parsed-text/free-text-transfer-parser.service';
+import { TransferSession } from '@/billy/bank-transfer/transfer-session.types';
 
 @Injectable()
 export class WhatsappWebhookService {
@@ -17,7 +19,22 @@ export class WhatsappWebhookService {
     private readonly vasService: VasService,
     private readonly transferService: TransferService,
     private readonly transferStepsService: TransferStepsService,
+    private readonly freeTextTransferParserService: FreeTextTransferParserService
   ) {}
+
+  private readonly transferKeywords = [
+  "transfer",
+  "send",
+  "credit",
+  "wire",
+  "run",
+  "run am",
+  "pay",
+  "move",
+  "drop",
+  "dash",
+  "gbese",
+];
 
   /* ======================================================
    * 📥 MAIN WEBHOOK HANDLER
@@ -48,6 +65,67 @@ export class WhatsappWebhookService {
 
         return 'cancelled';
       }
+
+      // ------------------------------------
+// 🔥 FREE-TEXT TRANSFER DETECTION
+// ------------------------------------
+
+const isTransferIntent = this.transferKeywords.some((key) =>
+  lower.startsWith(key)
+);
+
+if (isTransferIntent) {
+  const parsed = this.freeTextTransferParserService.parse(lower);
+
+  // --- Missing Amount ---
+  if (!parsed.amount) {
+    await this.cache.set(`tx:${from}`, {
+      step: "ENTER_AMOUNT",
+      data: {},
+      createdAt: Date.now(),
+    });
+
+    return this.whatsappApi.sendText(
+      from,
+      `💰 How much do you want to send?\nExample: *10k*, *5000*, *2.5m*\n\nType *cancel* to stop.`
+    );
+  }
+
+  // --- Missing Account Number ---
+  if (!parsed.accountNumber) {
+    await this.cache.set(`tx:${from}`, {
+      step: "ENTER_ACCOUNT",
+      data: { amount: parsed.amount },
+      createdAt: Date.now(),
+    });
+
+    return this.whatsappApi.sendText(
+      from,
+      `🔢 Enter the *recipient's account number*.\n\nType *cancel* to stop.`
+    );
+  }
+
+  // --- Missing Bank Name ---
+  if (!parsed.bankText) {
+    await this.cache.set(`tx:${from}`, {
+      step: "ENTER_BANK",
+      data: {
+        amount: parsed.amount,
+        accountNumber: parsed.accountNumber,
+      },
+      createdAt: Date.now(),
+    });
+
+    return this.whatsappApi.sendText(
+      from,
+      `🏦 I detected the account number *${parsed.accountNumber}*.\n\nWhich bank?\nType *cancel* to stop.`
+    );
+  }
+
+  // --- All present → send to full transfer handler ---
+  return this.startTransferFlowWithParsedData(from, parsed);
+}
+
 
         /* ======================================================
      * 🔥 3. ONBOARDING FLOW SUBMISSION (Flow Reply)
@@ -229,6 +307,100 @@ return 'session_active';
         return await this.whatsappApi.sendMenu(from, messageId);
     }
   }
+
+  private async startTransferFlowWithParsedData(
+  phone: string,
+  parsed: { amount?: number; accountNumber?: string; bankText?: string }
+) {
+  // STEP 1 — Check if user exists
+  const user = await this.userService.findByPhone(phone);
+  if (!user) {
+    return this.whatsappApi.sendText(phone, `❗ Please complete onboarding first.`);
+  }
+
+  // STEP 2 — Start brand-new transfer session
+  const session: TransferSession = {
+    step: 'ENTER_AMOUNT',
+    data: {},
+    createdAt: Date.now(),
+  };
+
+  // -------------------------------------------------------
+  // 🔍 If AMOUNT is present, set it
+  // -------------------------------------------------------
+  if (parsed.amount) {
+    session.data.amount = parsed.amount;
+    session.step = 'ENTER_ACCOUNT';
+  }
+
+  // -------------------------------------------------------
+  // 🔍 If ACCOUNT NUMBER is present, set it
+  // -------------------------------------------------------
+  if (parsed.accountNumber) {
+    session.data.accountNumber = parsed.accountNumber;
+    session.step = session.data.amount ? 'ENTER_BANK' : 'ENTER_AMOUNT';
+  }
+
+  // -------------------------------------------------------
+  // 🔍 If BANK TEXT exists, store as bank keyword
+  // -------------------------------------------------------
+  if (parsed.bankText) {
+    session.data.bankName = parsed.bankText;
+  }
+
+  await this.cache.set(`tx:${phone}`, session);
+
+  // -------------------------------------------------------
+  // DECISION TREE
+  // -------------------------------------------------------
+
+  // ✔ If ONLY AMOUNT is present → ask account
+  if (parsed.amount && !parsed.accountNumber) {
+    return this.whatsappApi.sendText(
+      phone,
+      `🔢 How much do you want to send?\n` +
+      `Amount detected: ₦${parsed.amount.toLocaleString()}\n\n` +
+      `Now enter the *recipient's 10-digit account number*.\n\nType *cancel* to stop.`
+    );
+  }
+
+  // ✔ If ACCOUNT ONLY present → ask bank
+  if (parsed.accountNumber && !parsed.amount) {
+    return this.whatsappApi.sendText(
+      phone,
+      `💳 Account detected: *${parsed.accountNumber}*\n\n` +
+      `How much do you want to transfer?\n\nType *cancel* to stop.`
+    );
+  }
+
+  // ✔ If BANK ONLY → ask for account or amount depending on presence
+  if (parsed.bankText && !parsed.accountNumber) {
+    return this.whatsappApi.sendText(
+      phone,
+      `🏦 Bank detected: *${parsed.bankText}*\n\n` +
+      `Please enter the *recipient's account number*.\n\nType *cancel* to stop.`
+    );
+  }
+
+  // ✔ If all required fields exist → proceed to next missing one
+  if (session.step === 'ENTER_BANK') {
+    return this.whatsappApi.sendText(
+      phone,
+      `🏦 Enter the recipient’s *bank name*.\n\nType *cancel* to stop.`
+    );
+  }
+
+  // ✔ If everything is complete → hand off to bank resolver
+  if (parsed.amount && parsed.accountNumber && parsed.bankText) {
+    return this.transferStepsService.handleBankName(phone, parsed.bankText);
+  }
+
+  // Fallback
+  return this.whatsappApi.sendText(
+    phone,
+    `🤖 I captured some details, but I need more information to complete your transfer.`
+  );
+}
 
   /* ======================================================
    * ⏳ Typing Simulation
