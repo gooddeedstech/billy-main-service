@@ -130,7 +130,7 @@ async executeTransfer(
   user.balance = Number(user.balance || 0) - payload.amount;
   await this.userService.update(user.id, user);
 
-  return tx;
+  return tx.data;
 }
 
   // ---------------- BENEFICIARY ----------------
