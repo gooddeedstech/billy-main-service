@@ -48,6 +48,22 @@ export class WhatsappWebhookService {
 
         return 'cancelled';
       }
+
+        /* ======================================================
+     * 🔥 3. ONBOARDING FLOW SUBMISSION (Flow Reply)
+     * ====================================================== */
+  if (msg.type === 'interactive' && msg.interactive?.type === 'nfm_reply') {
+  const rawJson = msg.interactive.nfm_reply.response_json;
+  const data = JSON.parse(rawJson);
+    this.logger.log(`PIN ${JSON.stringify(data)}`)
+  // 🔍 Detect if it's a PIN flow
+  if (data.pin) {
+    return await this.handlePinFlowSubmission(from, data, messageId);
+  }
+
+  // 🔍 Otherwise treat as onboarding flow
+  return await this.handleFlowSubmission(from, data, messageId);
+}
      
 
     /* ======================================================
@@ -91,21 +107,7 @@ switch (session.step) {
       return await this.transferStepsService.handleBeneficiaryDecision(from, lower);
     }
 
-    /* ======================================================
-     * 🔥 3. ONBOARDING FLOW SUBMISSION (Flow Reply)
-     * ====================================================== */
-  if (msg.type === 'interactive' && msg.interactive?.type === 'nfm_reply') {
-  const rawJson = msg.interactive.nfm_reply.response_json;
-  const data = JSON.parse(rawJson);
-    this.logger.log(`PIN ${JSON.stringify(data)}`)
-  // 🔍 Detect if it's a PIN flow
-  if (data.pin) {
-    return await this.handlePinFlowSubmission(from, data, messageId);
-  }
-
-  // 🔍 Otherwise treat as onboarding flow
-  return await this.handleFlowSubmission(from, data, messageId);
-}
+  
 
     /* ======================================================
      * 🔥 4. HELP & MENU COMMANDS
