@@ -98,4 +98,8 @@ async getHistory(
     items,
   };
 }
+
+async findByReference(reference: string) {
+  return this.transactionRepo.findOne({ where: { reference } });
+}
 }

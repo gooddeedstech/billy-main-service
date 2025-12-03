@@ -24,6 +24,7 @@ import { VasService } from '@/billy/vas.service';
 import { TransferStepsService } from '@/billy/transfer-steps.service';
 import { BankResolverServiceNew } from '@/billy/bank-transfer/generator/bank-resolver.service';
 import { UserTransactionService } from '@/billy/bank-transfer/user-transaction.service';
+import { RubiesWebhookController } from '@/rubies/webhook/rubies-webhook.controller';
 
 
 @Module({
@@ -45,7 +46,7 @@ import { UserTransactionService } from '@/billy/bank-transfer/user-transaction.s
         Tier,
       ]),],          
   providers: [WhatsappApiService,WhatsappEventFilterService,UserTransactionService, BankResolverServiceNew,TransferStepsService,TransferParserService,VasService,BankResolverService,TransferService, RubiesKYCService,RubiesVirtualAccountService, RubiesService,CacheService, UserService, WhatsappWebhookService, OnboardingFlowService],
-  controllers:[WhatsappAPIWebhookController],
+  controllers:[WhatsappAPIWebhookController, RubiesWebhookController],
   exports: [WhatsappApiService],  
 })
 export class WhatsappApiModule {}

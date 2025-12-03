@@ -232,4 +232,8 @@ async saveBeneficiary(phone: string, details: any) {
     const updated = Object.assign(existing, payload);
     return await this.userRepo.save(updated);
   }
+
+  async findByVirtualAccount(account: string) {
+  return this.userRepo.findOne({ where: { virtualAccount: account } });
+}
 }
