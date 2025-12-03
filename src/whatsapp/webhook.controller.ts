@@ -53,24 +53,24 @@ async handleIncoming(@Body() body: any) {
   /** -------------------------------------------------------
    * 1️⃣ HANDLE NFM FLOW SUBMISSION (Meta Flow Response)
    * ------------------------------------------------------ */
-  if (msg.type === 'interactive' && msg.interactive?.type === 'nfm_reply') {
-    this.logger.log(`📨 Received NFM Flow Submission from ${from}`);
+  // if (msg.type === 'interactive' && msg.interactive?.type === 'nfm_reply') {
+  //   this.logger.log(`📨 Received NFM Flow Submission from ${from}`);
 
-    try {
-      const jsonString = msg.interactive.nfm_reply.response_json;
-      const flowData = JSON.parse(jsonString);
+  //   try {
+  //     const jsonString = msg.interactive.nfm_reply.response_json;
+  //     const flowData = JSON.parse(jsonString);
 
-      this.logger.log(`🧾 Parsed Flow Data: ${JSON.stringify(flowData)}`);
+  //     this.logger.log(`🧾 Parsed Flow Data: ${JSON.stringify(flowData)}`);
 
-      // Send the result to your onboarding service
-      await this.userService.onboardUser(from,flowData);
+  //     // Send the result to your onboarding service
+  //     await this.userService.onboardUser(from,flowData);
 
-      return 'flow_processed';
-    } catch (error) {
-      this.logger.error(`❌ Failed to process flow: ${error.message}`);
-      return 'flow_error';
-    }
-  }
+  //     return 'flow_processed';
+  //   } catch (error) {
+  //     this.logger.error(`❌ Failed to process flow: ${error.message}`);
+  //     return 'flow_error';
+  //   }
+  // }
 
    const messageId = msg.id;
   await this.whatsappApiService.sendTypingIndicator(from, messageId);
