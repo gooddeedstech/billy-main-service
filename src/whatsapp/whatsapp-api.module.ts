@@ -23,6 +23,7 @@ import { redisStore } from 'cache-manager-redis-yet';
 import { VasService } from '@/billy/vas.service';
 import { TransferStepsService } from '@/billy/transfer-steps.service';
 import { BankResolverServiceNew } from '@/billy/bank-transfer/generator/bank-resolver.service';
+import { UserTransactionService } from '@/billy/bank-transfer/user-transaction.service';
 
 
 @Module({
@@ -43,7 +44,7 @@ import { BankResolverServiceNew } from '@/billy/bank-transfer/generator/bank-res
         UserTransaction,
         Tier,
       ]),],          
-  providers: [WhatsappApiService,WhatsappEventFilterService,BankResolverServiceNew,TransferStepsService,TransferParserService,VasService,BankResolverService,TransferService, RubiesKYCService,RubiesVirtualAccountService, RubiesService,CacheService, UserService, WhatsappWebhookService, OnboardingFlowService],
+  providers: [WhatsappApiService,WhatsappEventFilterService,UserTransactionService, BankResolverServiceNew,TransferStepsService,TransferParserService,VasService,BankResolverService,TransferService, RubiesKYCService,RubiesVirtualAccountService, RubiesService,CacheService, UserService, WhatsappWebhookService, OnboardingFlowService],
   controllers:[WhatsappAPIWebhookController],
   exports: [WhatsappApiService],  
 })

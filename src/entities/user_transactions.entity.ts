@@ -28,6 +28,9 @@ export class UserTransaction {
   @Column()
   description!: string;
 
+   @Column()
+  reference!: string;
+
   @Column({ type: 'decimal', precision: 18, scale: 2 })
   amount!: number;
 

@@ -113,25 +113,16 @@ async onboardUser(phoneNumber: string, dto: OnboardingFlowDto) {
   // -------------------------------------------------------
   // 🏦 STEP 4 — Create Rubies Virtual Account
   // -------------------------------------------------------
-  // const virtualAccount = await this.virtualAccountService.createVirtualAccount({
-  //   firstName: first_name,
-  //   lastName: last_name,
-  //   gender,
-  //   phoneNumber: phone_number,
-  //   bvn: bvn_number,
-  //   reference: `va-${phone_number}-${Date.now()}`,
-  // });
+  const virtualAccount = await this.virtualAccountService.createVirtualAccount({
+    firstName: first_name,
+    lastName: last_name,
+    gender,
+    phoneNumber: phone_number,
+    bvn: bvn_number,
+    reference: `va-${phone_number}-${Date.now()}`,
+  });
 
-  const virtualAccount =  {
-  "data": {
-    "accountNumber": "8880062492",
-    "accountName": "Samuel Osaieme",
-    "accountParent": "1000001179",
-    "accountCustomerId": "BUS0000000056",
-    "responseCode": "00",
-    "responseMessage": "Completed successfully"
-  }
-}
+  
   const { accountNumber, accountName, accountCustomerId } = virtualAccount?.data ?? {};
 
   if (!accountNumber) {

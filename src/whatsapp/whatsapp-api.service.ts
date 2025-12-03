@@ -173,6 +173,55 @@ async sendOnboardingTemplate(to: string, name: string) {
   }
 }
 
+
+async sendVerifyTransactionTemplate(
+  to: string,
+  transaction: {
+    amount: number;
+    accountName: string;
+    bankName: string;
+    accountNumber: string;
+  }
+) {
+  try {
+    const payload = {
+      messaging_product: "whatsapp",
+      to,
+      type: "template",
+      template: {
+        name: "confirm_transaction",   // your template name
+        language: { code: "en" },
+        components: [
+          {
+            type: "body",
+            parameters: [
+              { type: "text", text: `₦${transaction.amount.toLocaleString()}` },
+              { type: "text", text: transaction.accountName },
+              { type: "text", text: transaction.bankName },
+              { type: "text", text: transaction.accountNumber }
+            ]
+          },
+          {
+            type: "button",
+            sub_type: "flow",      // MUST be "flow"
+            index: "0"
+          }
+        ]
+      }
+    };
+
+    await firstValueFrom(
+      this.http.post(this.apiUrl, payload, { headers: this.headers() })
+    );
+
+    this.logger.log(`🔐 Verify transaction template sent → ${to}`);
+  } catch (error) {
+    this.logger.error(
+      `❌ Template send failed: ${JSON.stringify(error.response?.data || error)}`
+    );
+  }
+}
+
 async sendVirtualAccountDetails(phoneNumber: string) {
   // 1. Find user
   const user = await this.userRepo.findOne({

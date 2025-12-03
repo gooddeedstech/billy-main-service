@@ -3,8 +3,9 @@ import * as bcrypt from 'bcryptjs';
 import { UserService } from '@/flows/on-boading/services/user.service';
 import { RubiesService } from '@/rubies/rubies.service';
 import { CacheService } from '@/cache/cache.service';
-import { BeneficiaryType } from '@/flows/on-boading/services/enum/user.enums';
+import { BeneficiaryType, TransactionType } from '@/flows/on-boading/services/enum/user.enums';
 import { WhatsappApiService } from '@/whatsapp/whatsapp-api.service';
+import { UserTransactionService } from './user-transaction.service';
 
 export interface ExecuteTransferPayload {
   amount: number;
@@ -35,23 +36,41 @@ export class TransferService {
     private readonly rubies: RubiesService,
     private readonly cache: CacheService,
     private readonly whatsappApi: WhatsappApiService,
+    private readonly userTransactionService: UserTransactionService,
   ) {}
 
   // ---------------- PIN & BALANCE ----------------
 
-  async verifyPin(phone: string, pin: string) {
-    const user = await this.userService.findByPhone(phone);
-    if (!user) throw new BadRequestException('User not found');
-
-    if (!user.pinHash) {
-      throw new BadRequestException('PIN not set for this user');
-    }
-
-    const ok = await bcrypt.compare(pin, user.pinHash);
-    if (!ok) throw new BadRequestException('Incorrect PIN');
-
-    return user;
+ async verifyPin(phone: string, pin: string) {
+  const user = await this.userService.findByPhone(phone);
+  if (!user) {
+    await this.whatsappApi.sendText(
+      phone,
+      `❗ Account not found. Please restart by typing *menu*.`
+    );
+    throw new BadRequestException('User not found');
   }
+
+  if (!user.pinHash) {
+    await this.whatsappApi.sendText(
+      phone,
+      `❗ You have not set a transaction PIN yet.`
+    );
+    throw new BadRequestException('PIN not set for this user');
+  }
+
+  const ok = await bcrypt.compare(pin, user.pinHash);
+
+  if (!ok) {
+    await this.whatsappApi.sendText(
+      phone,
+      `❌ Incorrect PIN.\n\nPlease try again or type *cancel* to abort.`
+    );
+    throw new BadRequestException('Incorrect PIN');
+  }
+
+  return user;
+}
 
  private ensureSufficientBalance(user: any, amount: number) {
   if (!user.balance || Number(user.balance) < amount) {
@@ -97,12 +116,15 @@ async executeTransfer(
     bankCode: payload.bankCode,
     bankName: payload.bankName,
     narration: `Billy Transfer From: ${user.firstName} ${user.lastName}`,
-    debitAccountNumber: user.virtualAccount,
+    debitAccountNumber: process.env.RUBIES_PARENT_ACCOUNT,
     reference: `billy-tx-${Date.now()}`,
     sessionId: `${user.phoneNumber}-${Date.now()}`
   };
 
   const tx = await this.rubies.fundTransfer(request);
+  const narraction = `Bank transfer to ${payload.accountName}, ${payload.bankName}`
+  const reference = `${user.phoneNumber}-${Date.now()}`
+  await this.userTransactionService.record(phone,TransactionType.DEBIT,payload.amount, narraction, reference)
 
   // 🧮 Update wallet balance
   user.balance = Number(user.balance || 0) - payload.amount;

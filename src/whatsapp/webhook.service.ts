@@ -4,6 +4,7 @@ import { UserService } from '@/flows/on-boading/services/user.service';
 import { CacheService } from '@/cache/cache.service';
 import { VasService } from '@/billy/vas.service';
 import { TransferStepsService } from '@/billy/transfer-steps.service';
+import { TransferService } from '@/billy/bank-transfer/transfer.service';
 
 @Injectable()
 export class WhatsappWebhookService {
@@ -14,6 +15,7 @@ export class WhatsappWebhookService {
     private readonly userService: UserService,
     private readonly cache: CacheService,
     private readonly vasService: VasService,
+    private readonly transferService: TransferService,
     private readonly transferStepsService: TransferStepsService,
   ) {}
 
@@ -92,12 +94,18 @@ switch (session.step) {
     /* ======================================================
      * 🔥 3. ONBOARDING FLOW SUBMISSION (Flow Reply)
      * ====================================================== */
-    if (msg.type === 'interactive' && msg.interactive?.type === 'nfm_reply') {
-      const raw = msg.interactive.nfm_reply.response_json;
-      const flowData = JSON.parse(raw);
+  if (msg.type === 'interactive' && msg.interactive?.type === 'nfm_reply') {
+  const rawJson = msg.interactive.nfm_reply.response_json;
+  const data = JSON.parse(rawJson);
 
-      return await this.handleFlowSubmission(from, flowData, messageId);
-    }
+  // 🔍 Detect if it's a PIN flow
+  if (data.pin) {
+    return await this.handlePinFlowSubmission(from, data, messageId);
+  }
+
+  // 🔍 Otherwise treat as onboarding flow
+  return await this.handleFlowSubmission(from, data, messageId);
+}
 
     /* ======================================================
      * 🔥 4. HELP & MENU COMMANDS
@@ -139,6 +147,53 @@ return 'session_active';
   /* ======================================================
    * 🌟 HANDLE SUBMITTED WHATSAPP FLOW (NFM)
    * ====================================================== */
+  private async handlePinFlowSubmission(from: string, data: any, messageId: string) {
+  this.logger.log("🔐 PIN Flow submitted");
+
+  const session = await this.cache.get(`tx:${from}`);
+  if (!session) {
+    return await this.whatsappApi.sendText(
+      from,
+      "❗ No active transaction found. Type *menu* to begin."
+    );
+  }
+
+  try {
+    const pin = data.pin;
+
+    // Validate PIN
+    await this.transferService.verifyPin(from, pin);
+
+    // Execute transfer
+    const tx = await this.transferService.executeTransfer(from, session.data);
+
+    await this.whatsappApi.sendText(
+      from,
+      `✅ *Transfer Successful!*\n\n` +
+        `₦${session.data.amount.toLocaleString()} sent to *${session.data.accountName}*.`
+    );
+
+    // beneficiary?
+    await this.whatsappApi.sendText(
+      from,
+      `💾 Do you want to *save this beneficiary*?\nReply *yes* or *no*.`
+    );
+
+    // Save data for yes/no
+    await this.cache.set(`beneficiary:${from}`, session.data);
+
+    // Clear transfer session
+    await this.cache.delete(`tx:${from}`);
+
+    return "pin_flow_done";
+
+  } catch (err: any) {
+    this.logger.error(`❌ PIN Flow Error: ${err.message}`);
+    return await this.whatsappApi.sendText(from, `❗ ${err.message}`);
+  }
+}
+
+
   private async handleFlowSubmission(from: string, flowData: any, messageId: string) {
     this.logger.log(`📄 Flow submitted by ${from}`);
 
