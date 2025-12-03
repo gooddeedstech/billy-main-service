@@ -71,9 +71,9 @@ export class RubiesVirtualAccountService {
     }
 
     const payload: any = {
-      accountAmountControl: "EXACT",
+      accountAmountControl: "VARIABLE",
       accountParent: process.env.RUBIES_PARENT_ACCOUNT,
-      amount: 0,
+      amount: 1,
       firstName: dto.firstName,
       lastName: dto.lastName,
       gender: dto.gender,
