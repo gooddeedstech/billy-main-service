@@ -126,15 +126,22 @@ export class TransferStepsService {
 
     await this.cache.set(`tx:${phone}`, session);
 
-    return this.whatsappApi.sendText(
-      phone,
-      `🧾 *Confirm Transfer*\n\n` +
-        `• Amount: *₦${session.data.amount.toLocaleString()}*\n` +
-        `• Recipient: *${result.accountName}*\n` +
-        `• Bank: *${bank.bankName}*\n` +
-        `• Account Number: *${session.data.accountNumber}*\n\n` +
-        `Enter your *4-digit PIN* to continue.\nType *cancel* to abort.`
-    );
+    //  this.whatsappApi.sendText(
+    //   phone,
+    //   `🧾 *Confirm Transfer*\n\n` +
+    //     `• Amount: *₦${session.data.amount.toLocaleString()}*\n` +
+    //     `• Recipient: *${result.accountName}*\n` +
+    //     `• Bank: *${bank.bankName}*\n` +
+    //     `• Account Number: *${session.data.accountNumber}*\n\n` +
+    //     `Enter your *4-digit PIN* to continue.\nType *cancel* to abort.`
+    // );
+
+    return await this.whatsappApi.sendVerifyTransactionTemplate(phone, {
+  amount: session.data.amount!,
+  accountName: session.data.accountName!,
+  bankName: session.data.bankName!,
+  accountNumber: session.data.accountNumber!,
+});
   }
 
 
